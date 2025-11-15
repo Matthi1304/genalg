@@ -18,7 +18,7 @@ class MyApp(ShowBase):
         self.setBackgroundColor(1.0, 1.0, 1.0, 1)
         
         # Kamera Position anpassen
-        self.camera.setPos(0, -20, 5)
+        self.camera.setPos(0, -30, 0)
         self.camera.lookAt(0, 0, 0)
         
         # Beleuchtung hinzufügen
@@ -51,62 +51,40 @@ class MyApp(ShowBase):
         self.render.setLight(self.ambient_light_np)
     
     def setup_scene(self):
-        """3D-Objekte zur Szene hinzufügen"""
-        # Würfel in der Mitte - verwende Panda3D's eingebaute Modelle
-        try:
-            # Versuche zuerst das eingebaute Box-Modell zu laden
-            self.cube = self.loader.loadModel("models/misc/box")
-        except:
-            # Falls nicht verfügbar, verwende eine Kugel als Alternative
-            self.cube = self.loader.loadModel("models/misc/sphere")
+        """3D-Objekte zur Szene hinzufügen - Form der Ziffer 1"""
+        # Erstelle einen Container-Node für die gesamte Ziffer 1
+        self.digit_one = self.render.attachNewNode("digit_one")
 
-        self.cube.setScale(2, 2, 2)
-        self.cube.setPos(0, 0, 0)
-        self.cube.setColor(0.0, 0.0, 0.0, 1.0)  # Schwarz
-        self.cube.reparentTo(self.render)
+        # Hauptstamm der 1 (vertikal)
+        stem = self.loader.loadModel("models/box")
+        stem.setScale(1, 0.5, 8)  # Dünn und hoch
+        stem.setPos(0, 0, 0)
+        stem.setColor(0.0, 0.0, 0.0, 1.0)
+        stem.reparentTo(self.digit_one)
 
-        # Kleinere Würfel drumherum
-        colors = [
-            (0.0, 0.0, 0.0, 1.0),  # Schwarz
-            (0.0, 0.0, 0.0, 1.0),  # Schwarz
-            (0.0, 0.0, 0.0, 1.0),  # Schwarz
-            (0.0, 0.0, 0.0, 1.0),  # Schwarz
-        ]
+        # Oberer schräger Teil (Dach)
+        top = self.loader.loadModel("models/box")
+        top.setScale(1.5, 0.5, 1)
+        top.setPos(-1.2, 0, 6)
+        top.setHpr(0, 0, -30)  # Schräg nach links
+        top.setColor(0.0, 0.0, 0.0, 1.0)
+        top.reparentTo(self.digit_one)
 
-        positions = [
-            (5, 0, 0),
-            (-5, 0, 0),
-            (0, 5, 0),
-            (0, -5, 0),
-        ]
-
-        self.small_cubes = []
-        for pos, color in zip(positions, colors):
-            try:
-                cube = self.loader.loadModel("models/misc/box")
-            except:
-                cube = self.loader.loadModel("models/misc/sphere")
-
-            cube.setScale(1, 1, 1)
-            cube.setPos(*pos)
-            cube.setColor(*color)
-            cube.reparentTo(self.render)
-            self.small_cubes.append(cube)
+        # Basis der 1 (horizontal)
+        base = self.loader.loadModel("models/box")
+        base.setScale(4, 0.5, 1)
+        base.setPos(0, 0, -8)
+        base.setColor(0.0, 0.0, 0.0, 1.0)
+        base.reparentTo(self.digit_one)
     
     def rotate_scene(self, task):
         """Rotiert die Szene kontinuierlich"""
         if self.rotating:
-            angle_degrees = task.time * 20.0  # 20 Grad pro Sekunde
-            
-            # Hauptwürfel rotieren
-            self.cube.setHpr(angle_degrees, angle_degrees * 0.5, 0)
-            
-            # Kleine Würfel einzeln rotieren
-            for i, cube in enumerate(self.small_cubes):
-                cube.setHpr(angle_degrees * (1 + i * 0.2), 
-                           angle_degrees * 0.3, 
-                           angle_degrees * 0.7)
-        
+            angle_degrees = task.time * 10.0  # 10 Grad pro Sekunde (langsam)
+
+            # Die gesamte Ziffer 1 als Einheit um die Y-Achse rotieren
+            self.digit_one.setH(angle_degrees)
+
         return Task.cont
     
     def toggle_rotation(self):
