@@ -5,14 +5,33 @@ from direct.showbase.ShowBase import ShowBase
 from direct.task import Task
 from panda3d.core import *
 import sys
+from random import randint, choice, random
 
+# This helps reduce the amount of code used by loading objects, since all of
+# the objects are pretty much the same.
+def loadObject(tex):
+    # Every object uses the plane model
+    obj = base.loader.loadModel("models/plane")
+    obj.name = tex
+    tex = base.loader.loadTexture("textures/" + tex)
+    tex.setWrapU(SamplerState.WM_clamp)
+    tex.setWrapV(SamplerState.WM_clamp)
+    obj.setTexture(tex, 1)
+    
+    # Enable transparency blending.
+    obj.setTransparency(TransparencyAttrib.MAlpha)
+
+    return obj
 
 class MyApp(ShowBase):
     def __init__(self):
         ShowBase.__init__(self)
+
         self.disableMouse()
         self.render.setShaderAuto()
         
+        self.digits = [loadObject(f"{i}.png") for i in range(10)]
+
         self.setBackgroundColor(1, 1, 1, 1)
         
         self.camera_distance = -100
@@ -20,7 +39,6 @@ class MyApp(ShowBase):
         self.camera.lookAt(0, 0, 0)
         
         self.setup_lighting()
-        
         self.setup_scene()
         
         self.taskMgr.add(self.rotate_scene, "RotateSceneTask")
@@ -30,9 +48,8 @@ class MyApp(ShowBase):
         self.accept("arrow_up", self.move_camera_forward)
         self.accept("arrow_down", self.move_camera_backward)
         
-        self.rotating = False
+        self.rotating = True
 
-    
     def setup_lighting(self):
         ambientLight = AmbientLight("ambientLight")
         ambientLight.setColor((.1, .1, .1, 1))
@@ -41,18 +58,31 @@ class MyApp(ShowBase):
         directionalLight.setColor((0.2, 0.2, 0.2, 1))
         self.render.setLight(self.render.attachNewNode(directionalLight))
         self.render.setLight(self.render.attachNewNode(ambientLight))
+    
+    def random_point_in_sphere(self, radius):
+        while True:
+            x = random() * 2 - 1
+            y = random() * 2 - 1
+            z = random() * 2 - 1
+            if x*x + y*y + z*z <= 1:
+                return Point3(x * radius, y * radius, z * radius)
 
     def setup_scene(self):
-        self.scene = self.loader.loadModel("teapot")
+        self.config = []
+        self.scene = self.render.attachNewNode("scene")
         self.scene.reparentTo(self.render)
-        self.scene.setPos(Point3(0, 0, -1))
-        self.scene.setColor(.9, .9, .9, 1)
+        for i in range(150):
+            digit = self.digits[randint(0, 9)].copyTo(self.render)
+            digit.reparentTo(self.scene)
+            digit.setPos(self.random_point_in_sphere(15))
+            digit.setScale(random() * 10 + 0.1)
+            digit.setH(randint(0, 360))
         print("loaded scene")
     
     def rotate_scene(self, task):
         """Rotiert die Szene kontinuierlich"""
         if self.rotating:
-            angle_degrees = task.time * 10.0  # 10 degrees per second
+            angle_degrees = task.time * 30.0
             # rotate at Y axis
             self.scene.setH(angle_degrees)
 
@@ -60,7 +90,6 @@ class MyApp(ShowBase):
     
     def toggle_rotation(self):
         self.rotating = not self.rotating
-        status = "aktiviert" if self.rotating else "deaktiviert"
     
     def move_camera_forward(self):
         self.camera_distance += 5
