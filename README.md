@@ -1,60 +1,45 @@
-# Panda3D Starter-Projekt
+# Panda3D Project
 
-Ein einfaches 3D-Projekt mit Panda3D und Python.
+A 3D projekt with Panda3D and Python, ultimate goal is to find a configuration
+of digits floating in space which, when looked at from different angles itself
+build numbers.
 
-## Projektstruktur
-
-```
-.
-├── main.py          # Hauptanwendung
-├── Config.prc       # Panda3D Konfiguration
-└── README.md        # Diese Datei
-```
 
 ## Installation
 
-Panda3D wurde bereits installiert. Falls du es erneut installieren möchtest:
+To simplify distribution this project relies on uv, so everything should work
+out-of-the box if uv is installed on your system. This how the viewer ist
+started:
 
 ```bash
-pip install panda3d --break-system-packages
-```
-
-## Ausführen
-
-```bash
-python main.py
+uv run main.py
 ```
 
 ## Steuerung
 
-- **ESC**: Programm beenden
-- **SPACE**: Rotation an/aus schalten
+- **ESC**: Terminate the application
+- **SPACE**: Stop or start the rotation again
+- **UP/DOWN**: Move the camera forward / backward
 
-## Was macht das Projekt?
+## Todos
 
-Das Projekt zeigt:
-- Einen großen blauen Würfel in der Mitte
-- Vier kleinere farbige Würfel drumherum (rot, grün, gelb, orange)
-- Alle Würfel rotieren kontinuierlich
-- Professionelle Beleuchtung mit Ambient- und Point-Lights
+Ultimate goal is to find a configuration of digits in space which blend into
+the shape of different numbers when viewed from different angles.
 
-## Nächste Schritte
+To find such a configuration the idea is to apply a
+[gentic algorithm](https://en.wikipedia.org/wiki/Genetic_algorithm).
 
-Du kannst das Projekt erweitern durch:
-1. Weitere 3D-Modelle laden (.egg, .bam, .gltf Dateien)
-2. Physik hinzufügen (Bullet Physics)
-3. Texturen und Materialien anwenden
-4. Kollisionserkennung implementieren
-5. UI-Elemente mit DirectGUI erstellen
-6. Animationen mit Actors hinzufügen
+The next step would is to come up with a fitness function: view the scene from
+pre-defined angles and compare each appearance to a (differnt) target image.
 
-## Ressourcen
+The more similarities and the fewer differences, the better.
 
-- [Panda3D Dokumentation](https://docs.panda3d.org/)
-- [Panda3D Manual](https://docs.panda3d.org/1.10/python/index)
-- [Panda3D Forum](https://discourse.panda3d.org/)
-- [GitHub Repository](https://github.com/panda3d/panda3d)
+The overall fitness of a specific configuration is then the average over all
+views.
 
-## Lizenz
+## Ressources
 
-Dieses Starter-Projekt steht unter der MIT-Lizenz.
+- [Panda3D](https://panda3d.org/)
+- [uv](https://docs.astral.sh/uv/)
+- [Gentic Algorithm](https://en.wikipedia.org/wiki/Genetic_algorithm)
+
