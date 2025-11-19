@@ -7,6 +7,7 @@ from panda3d.core import *
 import sys
 from random import randint, choice, random
 
+NUM_DIGITS = 100
 
 # Macro-like function used to reduce the amount to code needed to create the
 # on screen instructions
@@ -15,21 +16,28 @@ def genLabelText(text, i):
                         fg=(0, 0, 0, 1), align=TextNode.ALeft, shadow=(0, 0, 0, 0.5), scale=.05)
 
 
-# This helps reduce the amount of code used by loading objects, since all of
+# This helpers reduce the amount of code used by loading objects, since all of
 # the objects are pretty much the same.
 def load_digit(i):
-    # todo: numbers should be white on the backside
+    front = _load_digit(i)   
+    back = _load_digit(f"{i}b")
+    back.reparentTo(front)
+    back.setH(180)
+    return front
+
+
+def _load_digit(i):
     obj = base.loader.loadModel("models/plane")
-    obj.name = f"{i}"
+    obj.name = f"digit {i}"
+    obj.setTransparency(TransparencyAttrib.MAlpha)       
     tex = base.loader.loadTexture(f"textures/{i}.png")
     tex.setWrapU(SamplerState.WM_clamp)
     tex.setWrapV(SamplerState.WM_clamp)
-    obj.setTexture(tex, 1)
-    
-    # Enable transparency blending.
-    obj.setTransparency(TransparencyAttrib.MAlpha)
-
+    ts = TextureStage('ts')
+    ts.setMode(TextureStage.MReplace)
+    obj.setTexture(ts, tex)
     return obj
+
 
 class MyApp(ShowBase):
     def __init__(self):
@@ -81,22 +89,15 @@ class MyApp(ShowBase):
         self.config = []
         self.scene = self.render.attachNewNode("scene")
         self.scene.reparentTo(self.render)
-        for i in range(150):
-            digit = self.digits[randint(0, 9)].copyTo(self.render)
+        for i in range(NUM_DIGITS):
+            digit = self.digits[randint(0, len(self.digits) - 1)].copyTo(self.scene)
+            #print("digit", i, digit, type(digit))
             digit.reparentTo(self.scene)
             digit.setPos(self.random_point_in_sphere(15))
             digit.setScale(random() * 10 + 0.1)
             digit.setH(randint(0, 360))
             self.config.append(digit)
         print("loaded scene")
-        # todo: test code, remove later
-        if True:
-            digit = self.digits[8].copyTo(self.render)
-            digit.reparentTo(self.render)
-            digit.setPos(0, -100, 0)
-            digit.setScale(10)
-            digit.setH(180)
-            self.config.append(digit)
 
     
     def rotate_scene(self, task):
@@ -138,7 +139,6 @@ class MyApp(ShowBase):
 
 
 if __name__ == "__main__":
-    from panda3d.core import loadPrcFile
     loadPrcFile("digits.prc")
     app = MyApp()
     app.run()
