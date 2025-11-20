@@ -8,18 +8,16 @@ build numbers.
 ## Installation
 
 To simplify distribution this project relies on uv, so everything should work
-out-of-the box if uv is installed on your system. This how the viewer ist
-started:
+out-of-the box if uv is installed on your system. This how the interactive viewer
+is started:
 
 ```bash
-uv run main.py
+uv run visualization.py
 ```
 
-## Steuerung
+This app currently shows a random configuration of digits in space (stored in file `config.json`).
 
-- **ESC**: Terminate the application
-- **SPACE**: Stop or start the rotation again
-- **UP/DOWN**: Move the camera forward / backward
+The genetic algorithm, still not finished, lives in `genetics.py`.
 
 ## Todos
 

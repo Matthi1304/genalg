@@ -1,8 +1,8 @@
 # window settings
-win-size 1280 720
+win-size 720 720
 win-origin -1 -1
 # fullscreen #t
-window-title DIGITS
+window-title DIGITS | Anamorphose (by Matthis Jodeleit)
 
 # framerate
 sync-video #t
