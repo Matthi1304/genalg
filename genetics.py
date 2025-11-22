@@ -10,6 +10,9 @@ from random import random, randint
 
 RADIUS = 15000.0
 
+MAX_SCALE = 6000
+MIN_SCALE =  500
+
 DEFAULT_NUM_CHROMOSOMS = 100
 DEFAULT_SIZE_OF_GENERATION = 50
 DEFAULT_SURVIVOR_RATE = 0.3
@@ -46,16 +49,18 @@ class Individual:
             self.genom[index] = create_random_gene()
         else:
             # Mutate a parameter
+            # [digit, x, y, z, size, heading_degrees]
             pos = randint(0, 5)
             gene = self.genom[index]
             if pos == 0:
                 gene[0] = randint(0, 9)
             elif pos in [1, 2, 3]:
+                # todo: we could do a better job here to ensure we stay within the sphere
                 gene[pos] += randint(-1000, 1000)
                 gene[pos] = max(-RADIUS, min(RADIUS, gene[pos]))
             elif pos == 4:
                 gene[4] += randint(-100, 100)
-                gene[4] = max(1, min(10000, gene[4]))
+                gene[4] = max(MIN_SCALE, min(MAX_SCALE, gene[4]))
             elif pos == 5:
                 gene[5] += randint(-10, 10)
                 gene[5] = gene[5] % 360
@@ -79,10 +84,12 @@ class Genetics:
 
     def run(self, app):
         fitness_function = FitnessFunction(app).fitness_function
-        population = self.create_random_population()
-        print( "=============================================================")
+        population = self.create_random_population(self.size_of_generation)
+        print("=============================================================")
         print("starting genetic algorithm...")
-        print( "=============================================================")
+        print("=============================================================")
+        worst_survivor_fitness = 0.0
+        stagnation_count = 0
         for generation in range(self.tournament_size + 1):
             start_time = time()
             population.sort(key=lambda x: x.getFitness(fitness_function=fitness_function), reverse=True)
@@ -91,27 +98,37 @@ class Genetics:
             self.winner = survivors[0].genom # store the best individuals genom
             if generation % 25 == 0:
                 print( "=============================================================")
-                print("         #   best s.  worst s.     worst       avg      time")
+                print("                best     worst   average   average")
+                print("         #  survivor  survivor survivors       all  duration")
                 #      ----+----|----+----|----+----|----+----|----+----|----+----|
             print(f"{generation:10d}"+
                   f"{survivors[0].getFitness():10.5f}"+
                   f"{survivors[-1].getFitness():10.5f}"+
-                  f"{population[-1].getFitness():10.5f}"+
+                  f"{sum(ind.getFitness() for ind in survivors) / len(survivors):10.5f}"+
                   f"{sum(ind.getFitness() for ind in population) / len(population):10.5f}"+
                   f"{time() - start_time:10.3f}")
             if generation == self.tournament_size:
                 # final generation, do not breed further
                 return
-            # Elitism: carry over the best individuals
             new_breed = []  
+            if worst_survivor_fitness == survivors[-1].getFitness():
+                stagnation_count += 1
+                if stagnation_count >= 4:
+                    print("Warn: Stagnation detected, killing half of the survivors, adding new geenoms to the pool.")
+                    survivors = survivors[:len(survivors)//2]
+                    new_breed = self.create_random_population(num_survivors - len(survivors))
+            else:
+                worst_survivor_fitness = survivors[-1].getFitness()
+                stagnation_count = 0
             # Breeding
-            while len(new_breed) + num_survivors< self.size_of_generation:
+            while len(new_breed) + num_survivors < self.size_of_generation:
                 child = self.crossover(sample(survivors, 3))
                 new_breed.append(child)
             # Mutation
             for m in range(int(len(new_breed) * self.mutation_rate)):
                 individual = new_breed[randint(0,  len(new_breed) - 1)]
                 individual.mutate()
+            # Elitism: carry over the best individuals
             population = survivors + new_breed
 
 
@@ -131,9 +148,9 @@ class Genetics:
         return Individual(childGenom)
 
 
-    def create_random_population(self):
+    def create_random_population(self, count):
         population = []
-        for _ in range(self.size_of_generation):
+        for _ in range(count):
             genome = self.generate_random_genome()
             population.append(Individual(genome))
         return population
@@ -149,7 +166,7 @@ class Genetics:
 
 def create_random_gene():
     # [digit, x, y, z, size, heading_degrees]
-    return [randint(0, 9)] + _random_point_in_sphere(RADIUS) + [randint(1, 10000), randint(0, 359)]
+    return [randint(0, 9)] + _random_point_in_sphere(RADIUS) + [randint(MIN_SCALE, MAX_SCALE), randint(0, 359)]
 
 
 def _random_point_in_sphere(radius):

@@ -47,7 +47,7 @@ class Visualizer(ShowBase):
         self.disableMouse()
         self.render.setShaderAuto()        
         self.setBackgroundColor(1, 1, 1, 1)
-        self.camera_distance = -80
+        self.camera_distance = -100
         self.camera.setPos(0, self.camera_distance, 0)
         self.camera.lookAt(0, 0, 0)
         self.setup_lighting()
