@@ -12,10 +12,11 @@ out-of-the box if uv is installed on your system. This how the interactive viewe
 is started:
 
 ```bash
-uv run visualization.py
+uv run main.py
 ```
 
-This app currently shows a random configuration of digits in space (stored in file `config.json`).
+This currently shows a random configuration of digits in space (stored in file 
+`config.json`).
 
 The genetic algorithm, still not finished, lives in `genetics.py`.
 

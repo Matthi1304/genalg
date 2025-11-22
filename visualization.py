@@ -40,6 +40,7 @@ def _load_digit(i):
 
 
 class Visualizer(ShowBase):
+
     def __init__(self, callback=None):
         ShowBase.__init__(self)
         self.digits = [load_digit(i) for i in range(10)]
@@ -53,6 +54,7 @@ class Visualizer(ShowBase):
         self.scene = None
         if callback:
             self.config = []
+            self.hourText = None
             callback(self)
         else:
             self.accept("escape", sys.exit)
@@ -65,13 +67,14 @@ class Visualizer(ShowBase):
             self.accept("arrow_right", self.turn_scene, [+1])
             self.accept("arrow_left-repeat", self.turn_scene, [-1])
             self.accept("arrow_right-repeat", self.turn_scene, [+1])
-            self.accept("shift-arrow_left", self.turn_scene, [-30])
-            self.accept("shift-arrow_right", self.turn_scene, [+30])
+            self.accept("shift-arrow_left", self.turn_hour, [-1])
+            self.accept("shift-arrow_right", self.turn_hour, [+1])
             self.toggle_rotation(rotating=True)
             genLabelText("ESC: Quit", 0)
             genLabelText("SPACE: Start/Stop Rotation", 1)
             genLabelText("UP/DOWN: Move Camera In/Out", 2)
             genLabelText("(SHIFT) LEFT/RIGHT: Rotate Scene", 3)
+            self.hourText = genLabelText("Time: 12:00", 4)
 
 
     def setup_lighting(self):
@@ -92,10 +95,10 @@ class Visualizer(ShowBase):
         for digit in self.config:
             data.append([
                 int(digit.name[6]), #0
-                float(f'{digit.getPos().x*SIZE_SCALE:.2f}'), #1
-                float(f'{digit.getPos().y*SIZE_SCALE:.2f}'), #2
-                float(f'{digit.getPos().z*SIZE_SCALE:.2f}'), #3
-                float(f'{digit.getScale().x*SIZE_SCALE:.2f}'), #4
+                int(digit.getPos().x*SIZE_SCALE), #1
+                int(digit.getPos().y*SIZE_SCALE), #2
+                int(digit.getPos().z*SIZE_SCALE), #3
+                int(digit.getScale().x*SIZE_SCALE), #4
                 int(digit.getH()) #5
             ])
         return data
@@ -126,22 +129,29 @@ class Visualizer(ShowBase):
         return Task.cont
     
 
-    def rotate_to(self, degrees=None, hour=12):       
-        # Placeholder for future implementation
+    def rotate_to(self, degrees=None, hour=0):       
         if degrees is None:
             degrees = (hour % 12) * 30.0
         self.scene.setH(degrees)
+        if self.hourText:
+            t = (degrees / 30) % 12
+            if (t < 1.0):
+                t += 12.0
+            self.hourText.setText(f"Time: {int(t)}:{int((t - int(t)) * 60):02d}")
     
 
     def turn_scene(self, direction):
         if self.rotating:
             self.toggle_rotation()
-        if abs(direction) < 30:
-            self.rotate_to(self.scene.getH() + direction)
-        else:
-            current_hour = int((self.scene.getH() % 360) / 30)
-            degrees = ((current_hour + direction) % 12) * 30.0
-            self.rotate_to(degrees=degrees)
+        self.rotate_to(degrees=self.scene.getH() + direction)
+
+
+    def turn_hour(self, direction):
+        if self.rotating:
+            self.toggle_rotation()
+        current_hour = int((self.scene.getH() / 30) % 12)
+        new_hour = (current_hour + direction) % 12
+        self.rotate_to(hour=new_hour)
 
 
     def make_screenshot(self, hour):
@@ -165,15 +175,15 @@ class Visualizer(ShowBase):
         self.camera.setPos(0, self.camera_distance, 0)
 
 
-def headless_app(callback):
-    loadPrcFile("headless.prc")
+def headless_app(callback, prc_file="headless.prc"):
+    loadPrcFile(prc_file)
     app = Visualizer(callback=callback)
     return app
 
 
-def start():
+def start(config="config.json"):
     loadPrcFile("digits.prc")
-    with open("config.json", "r") as f:
+    with open(config, "r") as f:
         config = json.load(f)
     app = Visualizer()
     app.set_configuration(config)
@@ -181,4 +191,7 @@ def start():
 
 
 if __name__ == "__main__":
-    start()
+    if len(sys.argv) > 1:
+        start(config=sys.argv[1])
+    else:
+        start()
