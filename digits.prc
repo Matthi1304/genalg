@@ -1,6 +1,6 @@
 # window settings
 win-size 720 720
-win-origin -1 -1
+win-origin 150 50
 # fullscreen #t
 window-title DIGITS | Anamorphose (by Matthis Jodeleit)
 

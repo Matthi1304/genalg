@@ -30,6 +30,9 @@ class MaskImage():
         return score        
 
 
+BOOST_FACTOR_MATCHING_PIXELS = 1.5
+
+
 class FitnessFunction():
 
     def __init__(self, app):
@@ -58,5 +61,5 @@ class FitnessFunction():
     def _hour_fitness(self, texture_image, hour):
         matchScore = self.mask_images[hour].get_score(texture_image, self.tmp_image)
         mismatchScore = self.inverted_mask_images[hour].get_score(texture_image, self.tmp_image)    
-        score = matchScore - mismatchScore
+        score = BOOST_FACTOR_MATCHING_PIXELS * matchScore - mismatchScore
         return score

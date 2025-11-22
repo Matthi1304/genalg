@@ -58,6 +58,7 @@ class Visualizer(ShowBase):
             callback(self)
         else:
             self.accept("escape", sys.exit)
+            self.accept("q", sys.exit)
             self.accept("space", self.toggle_rotation)
             self.accept("arrow_up", self.move_camera, [+5])
             self.accept("arrow_down", self.move_camera, [-5])
@@ -70,7 +71,7 @@ class Visualizer(ShowBase):
             self.accept("shift-arrow_left", self.turn_hour, [-1])
             self.accept("shift-arrow_right", self.turn_hour, [+1])
             self.toggle_rotation(rotating=True)
-            genLabelText("ESC: Quit", 0)
+            genLabelText("ESC/Q: Quit", 0)
             genLabelText("SPACE: Start/Stop Rotation", 1)
             genLabelText("UP/DOWN: Move Camera In/Out", 2)
             genLabelText("(SHIFT) LEFT/RIGHT: Rotate Scene", 3)
@@ -149,7 +150,7 @@ class Visualizer(ShowBase):
     def turn_hour(self, direction):
         if self.rotating:
             self.toggle_rotation()
-        current_hour = int((self.scene.getH() / 30) % 12)
+        current_hour = int(((self.scene.getH() + 29.9) / 30) % 12)
         new_hour = (current_hour + direction) % 12
         self.rotate_to(hour=new_hour)
 
