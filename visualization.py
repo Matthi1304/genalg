@@ -30,7 +30,7 @@ def _load_digit(i):
     obj = base.loader.loadModel("models/plane")
     obj.name = f"digit {i}"
     obj.setTransparency(TransparencyAttrib.MAlpha)       
-    tex = base.loader.loadTexture(f"textures/{i}.png")
+    tex = base.loader.loadTexture(f"img/{i}.png")
     tex.setWrapU(SamplerState.WM_clamp)
     tex.setWrapV(SamplerState.WM_clamp)
     ts = TextureStage('ts')
@@ -150,9 +150,13 @@ class Visualizer(ShowBase):
     def turn_hour(self, direction):
         if self.rotating:
             self.toggle_rotation()
-        current_hour = int(((self.scene.getH() + 29.9) / 30) % 12)
-        new_hour = (current_hour + direction) % 12
-        self.rotate_to(hour=new_hour)
+        h = self.scene.getH() / 30
+        if h == int(h):
+            self.rotate_to(hour=int(h) + direction)
+        elif direction > 0:
+            self.rotate_to(hour=int(h) + 1)
+        else:
+            self.rotate_to(hour=int(h))
 
 
     def make_screenshot(self, hour):

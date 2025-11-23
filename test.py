@@ -9,6 +9,27 @@ import fitness
 from panda3d.core import PNMImage
 from panda3d.core import Texture
 
+
+def invert_image_test():
+    image = PNMImage()
+    image.read("textures/target_1.png")
+    image.setNumChannels(1)
+
+    black = PNMImage(image.getXSize(), image.getYSize(), 1)
+    black.fill(0.0)
+    white = PNMImage(image.getXSize(), image.getYSize(), 1)
+    white.fill(1.0)
+    
+    # threshold(source: PNMImage, channel: int, threshold: float, lt: PNMImage, ge: PNMImage)
+    # For each source pixel (x, y):
+    # c = source.get_channel(x, y, channel). 
+    # Set this image’s (x, y) to:
+    #  if c <  threshold --> take from lt
+    #  if c >= threshold --> take from ge
+    image.threshold(image, 0, 0.9, white, black)
+
+    image.write("tmp/target_1_inverted.png")
+
 def image_test():
     print("black = 0.0")
     print("white = 1.0")
@@ -127,6 +148,7 @@ def fitness_test(app):
 
 if __name__ == "__main__":
     cases = {
+        "invert-image": [invert_image_test, False],
         "image": [image_test, False], 
         "screenshot": [screenshot_test, True], 
         "configuration": [configuration_test, True], 

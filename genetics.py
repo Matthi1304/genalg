@@ -14,7 +14,7 @@ QUANTIZATION = 100
 Q = RADIUS // QUANTIZATION # the following condition should hold: Q * QUANTIZATION == RADIUS 
 
 MAX_SCALE = 6000
-MIN_SCALE =  500
+MIN_SCALE =  100
 
 NUM_PARENTS = 3 # must be at least 2
 
@@ -36,8 +36,6 @@ class Individual:
         # X axis - Left / Right
         # Y axis - Front / Back
         # Z axis - Top / Bottom
-
-        # z = randint(-Q, Q) * QUANTIZATION
         while True:
             x = random() * 2 - 1
             y = random() * 2 - 1
@@ -83,7 +81,7 @@ class Individual:
         return self.fitness
 
 
-    def mutate(self):
+    def mutate(self, count=1):
         # We can mutate by replacing one gene with a new random one, 
         # or by mutate an individual gene.
         # A gene has six parameters: [digit, x, y, z, size, heading_degrees].
@@ -91,33 +89,42 @@ class Individual:
         # A mutation should be small, e.g. position +/- 1000, size +/- 100, heading +/- 20 degrees.
         # Make sure to keep parameters within valid ranges
         self.fitness = None  # reset cached fitness
-        index = randint(0, len(self.genom) - 1)
-        choice = random()
-        if choice < 0.2:
-            # Replace a chromosom
-            self.genom[index] = Individual.create_random_gene()
-        else:
-            # Mutate a parameter
-            #  0      1  2  3  4     5
-            # [digit, x, y, z, size, heading_degrees]
-            pos = randint(0, 5)
-            gene = self.genom[index]
-            if pos == 0:
-                gene[0] = randint(0, 9)
-            elif pos in [1, 2, 3]:
-                # todo: we could do a better job here to ensure we stay within the target space
-                gene[pos] += randint(-1000, 1000)
-                gene[pos] = max(-RADIUS, min(RADIUS, gene[pos]))
-            elif pos == 4:
-                gene[4] += randint(-100, 100)
-                gene[4] = max(MIN_SCALE, min(MAX_SCALE, gene[4]))
-            elif pos == 5:
-                gene[5] += randint(-20, 20)
-                gene[5] = gene[5] % 360
+        for _ in range(count):
+            index = randint(0, len(self.genom) - 1)
+            choice = random()
+            if choice < 0.1:
+                # Replace a chromosom
+                self.genom[index] = Individual.create_random_gene()
+            else:
+                # Mutate a parameter
+                # [0: digit, 1: x, 2: y, 3: z, 4: size, 5: heading_degrees]
+                pos = randint(0, 5)
+                gene = self.genom[index]
+                if pos == 0:
+                    gene[0] = randint(0, 9)
+                elif pos in [1, 2, 3]:
+                    # todo: we could do a better job here to ensure we stay within the target space
+                    gene[pos] += randint(-1000, 1000)
+                    gene[pos] = max(-RADIUS, min(RADIUS, gene[pos]))
+                elif pos == 4:
+                    gene[4] += randint(-100, 100)
+                    gene[4] = max(MIN_SCALE, min(MAX_SCALE, gene[4]))
+                elif pos == 5:
+                    gene[5] += randint(-20, 20)
+                    gene[5] = gene[5] % 360
+        return self
     
     
     def copy(self):
         return Individual(self.genom.copy())
+
+
+    def __len__(self):
+        return len(self.genom)
+    
+
+    def __str__(self):
+        return f'Individual(fitness={self.fitness}, len={len(self.genom)})'
 
 
 class Genetics:
@@ -127,17 +134,19 @@ class Genetics:
                  size_of_generation=DEFAULT_SIZE_OF_GENERATION,
                  survivor_rate=DEFAULT_SURVIVOR_RATE, 
                  mutation_rate=DEFAULT_MUTATION_RATE,
-                 tournament_size=DEFAULT_TOURNAMENT_SIZE):
+                 tournament_size=DEFAULT_TOURNAMENT_SIZE,
+                 target_images=None):
         self.size_of_genom = size_of_genom
         self.size_of_generation = size_of_generation
         self.survivor_rate = survivor_rate
         self.mutation_rate = mutation_rate
         self.tournament_size = tournament_size
+        self.target_images = target_images
         self.winner = None
 
 
     def run(self, app):
-        fitness_function = FitnessFunction(app).fitness_function
+        fitness_function = FitnessFunction(app, self.target_images).fitness_function
         population = self.create_random_population(self.size_of_generation)
         self.winner = population[0].genom
         print("=============================================================")
@@ -160,29 +169,37 @@ class Genetics:
                 return
             if worst_survivor_fitness == survivors[-1].getFitness():
                 stagnation_count += 1
-                if stagnation_count >= 2:
-                    print("Warn: Stagnation detected, countermeasures activated")
-                    population = self.alternative_breed(fitness_function, survivors[0].getFitness(), generation)
-                if (stagnation_count >= 3):
-                    self.mutation_rate = self.mutation_rate * 1.05
+                print(f"Warn: Stagnation ({stagnation_count}) detected, countermeasures activated")
+                self.mutation_rate = self.mutation_rate * 1.05
+                if stagnation_count == 1:
+                    # alternative breed starts from scratch
+                    survivors += self.alternative_breed(
+                        fitness_function, survivors[0].getFitness(), generation)
+                elif stagnation_count <= 3:
+                    # seed alternative breed
+                    l = len(survivors) - 1
+                    survivors += self.alternative_breed(
+                        fitness_function, survivors[0].getFitness(), generation, population=sample(survivors[1:], l // 2))
+                else:
+                    for individual in survivors:
+                        population.append(individual.copy().mutate(int(len(individual) * self.mutation_rate)))
             else:
                 worst_survivor_fitness = survivors[-1].getFitness()
-                stagnation_count = 0
             # Breeding
             while len(population) + len(survivors) < self.size_of_generation:
                 child = Individual.breed(sample(survivors, NUM_PARENTS))
                 population.append(child)
             # Mutation
-            for m in range(int(len(population) * self.mutation_rate)):
+            for _ in range(int(len(population) * self.mutation_rate)):
                 individual = population[randint(0,  len(population) - 1)]
                 individual.mutate()
             # Elitism: carry over the best individuals
             population += survivors
 
 
-    def alternative_breed(self, fitness_function, target_fitness, generation):
+    def alternative_breed(self, fitness_function, target_fitness, generation, population=[]):
         # additional breeding to reach target fitness
-        population = self.create_random_population(self.size_of_generation)
+        population += self.create_random_population(self.size_of_generation - len(population))
         last_worst_fitness = -1000.0
         while True:
             generation += 1
@@ -204,7 +221,7 @@ class Genetics:
                 child = Individual.breed(sample(survivors, NUM_PARENTS))
                 population.append(child)
             # Mutation
-            for m in range(int(len(population) * self.mutation_rate)):
+            for _ in range(int(len(population) * self.mutation_rate)):
                 individual = population[randint(0,  len(population) - 1)]
                 individual.mutate()
             # Elitism: carry over the best individuals
@@ -257,20 +274,27 @@ if __name__ == "__main__":
     SURVIVOR_RATE = _get_from_env("SURVIVOR_RATE", 0.3, float)
     MUTATION_RATE = _get_from_env("MUTATION_RATE", 0.1, float)
     TOURNAMENT_SIZE = _get_from_env("TOURNAMENT_SIZE", 100, int)
+    TARGET_IMAGE_PATH = _get_from_env("FITNESS_IMAGE_PATH", "", str)
+    TARGET_IMAGES = _get_from_env("FITNESS_IMAGES", "", str)
     print("=============================================================")
+    assert len(TARGET_IMAGES) > 0, "Error: No FITNESS_IMAGES specified in .env file."
+    target_images = [TARGET_IMAGE_PATH + img for img in TARGET_IMAGES.split(",")]
+    for img in target_images:
+        assert os.path.isfile(img), f"Error: Target image file '{img}' does not exist."
     genetics = Genetics(
         size_of_genom=SIZE_OF_GENOM,
         size_of_generation=SIZE_OF_GENERATION,
         survivor_rate=SURVIVOR_RATE,
         mutation_rate=MUTATION_RATE,
-        tournament_size=TOURNAMENT_SIZE
+        tournament_size=TOURNAMENT_SIZE,
+        target_images=target_images
     )
     try:
         visualization.headless_app(callback=genetics.run, prc_file="headless_128x128.prc")
     except KeyboardInterrupt:
         print("Info: Interrupted by user.")
     json_str = json.dumps(genetics.winner, indent=4, check_circular=False)
-    filename = "winner.%d.json" % int(time())
+    filename = "winner.%d.json" % int(time()) if len(sys.argv) < 2 else sys.argv[1]
     with open(filename, "w") as f:
         f.write(json_str)
     print("=============================================================")
