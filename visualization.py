@@ -89,7 +89,8 @@ class Visualizer(ShowBase):
             genLabelText("SPACE: Start/Stop Rotation", 1)
             genLabelText("UP/DOWN: Move Camera In/Out", 2)
             genLabelText("(SHIFT) LEFT/RIGHT: Rotate Scene", 3)
-            self.hourText = genLabelText("Time: 12:00", 4)
+            self.hourText = genLabelText("12:00", 4)
+            self.degreeText= genLabelText("000°", 5)
 
 
     def setup_lighting(self):
@@ -131,7 +132,8 @@ class Visualizer(ShowBase):
             t = (degrees / 30) % 12
             if (t < 1.0):
                 t += 12.0
-            self.hourText.setText(f"Time: {int(t)}:{int((t - int(t)) * 60):02d}")
+            self.hourText.setText(f" {int(t):2d}:{int((t - int(t)) * 60):02d}")
+            self.degreeText.setText(f" {int(degrees)%360:03d}°")
     
 
     def turn_scene(self, direction):
