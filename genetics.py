@@ -13,8 +13,8 @@ RADIUS = 15000
 QUANTIZATION = 100
 Q = RADIUS // QUANTIZATION # the following condition should hold: Q * QUANTIZATION == RADIUS 
 
-MAX_SCALE = 6000
-MIN_SCALE =  100
+MAX_SCALE =  3000
+MIN_SCALE =   1000 # in real life this should be at least 40 mm
 
 NUM_PARENTS = 3 # must be at least 2
 
@@ -169,20 +169,21 @@ class Genetics:
                 return
             if worst_survivor_fitness == survivors[-1].getFitness():
                 stagnation_count += 1
-                print(f"Warn: Stagnation ({stagnation_count}) detected, countermeasures activated")
                 self.mutation_rate = self.mutation_rate * 1.05
                 if stagnation_count == 1:
                     # alternative breed starts from scratch
+                    print(f"Warn: Stagnation ({stagnation_count}) detected, develop new breed to mix in")
                     survivors += self.alternative_breed(
                         fitness_function, survivors[0].getFitness(), generation)
                 elif stagnation_count <= 3:
                     # seed alternative breed
+                    print(f"Warn: Stagnation ({stagnation_count}) detected, develop new breed to mix in")
                     l = len(survivors) - 1
                     survivors += self.alternative_breed(
                         fitness_function, survivors[0].getFitness(), generation, population=sample(survivors[1:], l // 2))
-                else:
-                    for individual in survivors:
-                        population.append(individual.copy().mutate(int(len(individual) * self.mutation_rate)))
+                elif stagnation_count >= 10:
+                    print(f"Warn: Termininating after #{stagnation_count} stagnations")
+                    return
             else:
                 worst_survivor_fitness = survivors[-1].getFitness()
             # Breeding

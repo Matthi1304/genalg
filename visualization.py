@@ -19,18 +19,32 @@ def genLabelText(text, i):
 # This helpers reduce the amount of code used by loading objects, since all of
 # the objects are pretty much the same.
 def load_digit(i):
-    front = _load_digit(i)   
-    back = _load_digit(f"{i}b")
+    image = PNMImage(f"img/{i}.png")
+    front = _load_digit(f"digit {i}", image)
+    # front.setPos(-1, 0, 0)
+    image = PNMImage(f"img/{i}.png")
+    flip_image_and_exchange_black_with_white(image)
+    image.write(f"tmp/{i}_b.png")
+    back = _load_digit(f"digit {i} back", image)
     back.reparentTo(front)
     back.setH(180)
+    # back.setPos(1, 0, 0)
     return front
 
 
-def _load_digit(i):
+def flip_image_and_exchange_black_with_white(image):
+    image.flip(True, False, False)
+    white = PNMImage(image.getXSize(), image.getYSize(), 1)
+    white.fill(1.0)
+    image.threshold(image, 0, 0.9, white, image)
+
+
+def _load_digit(name, image):
     obj = base.loader.loadModel("models/plane")
-    obj.name = f"digit {i}"
+    obj.name = f"{name}"
     obj.setTransparency(TransparencyAttrib.MAlpha)       
-    tex = base.loader.loadTexture(f"img/{i}.png")
+    tex = Texture()
+    tex.load(image)
     tex.setWrapU(SamplerState.WM_clamp)
     tex.setWrapV(SamplerState.WM_clamp)
     ts = TextureStage('ts')
@@ -47,7 +61,7 @@ class Visualizer(ShowBase):
         self.disableMouse()
         self.render.setShaderAuto()        
         self.setBackgroundColor(1, 1, 1, 1)
-        self.camera_distance = -100
+        self.camera_distance = -60
         self.camera.setPos(0, self.camera_distance, 0)
         self.camera.lookAt(0, 0, 0)
         self.setup_lighting()
@@ -83,27 +97,6 @@ class Visualizer(ShowBase):
         ambientLight.setColor((.1, .1, .1, 1))
         self.render.setLight(self.render.attachNewNode(ambientLight))
 
-
-    def get_configuration(self):
-        """"
-        Returns the current configuration as a list of lists. Each inner list contains:
-        [digit, x, y, z, size, heading_degrees].
-        x, y, z positions and scale should be between -15000 and +15000,
-        size should be between 1 and 10000,
-        and heading should be between 0 and 360 degrees.
-        """
-        data = []
-        for digit in self.config:
-            data.append([
-                int(digit.name[6]), #0
-                int(digit.getPos().x*SIZE_SCALE), #1
-                int(digit.getPos().y*SIZE_SCALE), #2
-                int(digit.getPos().z*SIZE_SCALE), #3
-                int(digit.getScale().x*SIZE_SCALE), #4
-                int(digit.getH()) #5
-            ])
-        return data
-    
 
     def set_configuration(self, data):
         """
@@ -159,9 +152,9 @@ class Visualizer(ShowBase):
             self.rotate_to(hour=int(h))
 
 
-    def make_screenshot(self, hour):
-        self.rotate_to(hour=hour)
-        base.graphicsEngine.renderFrame() 
+    def make_screenshot(self, degrees):
+        self.rotate_to(degrees=degrees)
+        base.graphicsEngine.renderFrame()
         shot = self.win.getScreenshot()
         return shot
 

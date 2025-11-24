@@ -2,6 +2,9 @@ from logging import DEBUG
 from panda3d.core import PNMImage
 
 
+DEBUG = False
+
+
 class MaskImage():
 
     def __init__(self, image_path=None, image=None):
@@ -9,8 +12,7 @@ class MaskImage():
         if image is not None:
             self.image = image
         else:
-            self.image = PNMImage()
-            self.image.read(image_path)
+            self.image = PNMImage(image_path)
             self.image.setNumChannels(1)
         self.darkness = 1 - self.image.getAverageGray()
 
@@ -37,12 +39,18 @@ class MaskImage():
         return MaskImage(image=inverted_image)
     
 
-    def get_score(self, texture, tmp_image):
+    def get_score(self, tmp_image):
         """
         return the level of matching pixels between the mask and the texture 
         (a value between 0 and 1, where 1 is a perfect match)
         """
-        texture.store(tmp_image)
+        tmp_image = self.get_masked_image(tmp_image)
+        darkness_after_masking = 1 - tmp_image.getAverageGray()
+        score = 1 - (self.darkness - darkness_after_masking) / self.darkness
+        return score
+    
+
+    def get_masked_image(self, tmp_image):
         # threshold(select_image: PNMImage, channel: int, threshold: float, lt: PNMImage, ge: PNMImage)
         # For each pixel (x, y):
         # s = select_image.get_channel(x, y, channel). Set this image’s (x, y) to:
@@ -50,10 +58,7 @@ class MaskImage():
         # ge.get_xel(x, y) if s >= threshold
         # mask_positive.threshold(mask_positive, 0, 0.9, image, mask_positive)
         tmp_image.threshold(self.image, 0, 0.9, tmp_image, self.image)
-
-        darkness_after_masking = 1 - tmp_image.getAverageGray()
-        score = 1 - (self.darkness - darkness_after_masking) / self.darkness
-        return score        
+        return tmp_image
 
 
 BOOST_FACTOR_MATCHING_PIXELS = 1.05
@@ -70,16 +75,22 @@ class FitnessFunction():
         self.tmp_image.copyFrom(self.mask_images[0].image)
         self.tmp_image.setNumChannels(1)
 
-        self.positions = [(i, i * (360.0 / len(self.mask_images))) for i in range(len(self.mask_images))]
+        self.positions = [(i * (360.0 / len(self.mask_images))) for i in range(len(self.mask_images))]
 
 
-    def fitness_function(self, individual):
+    def fitness_function(self, configuration):
         fitness = 0.0
-        self.app.set_configuration(individual)
-        for i, degrees in self.positions:
-            image = self.app.make_screenshot(degrees)
-            matchScore = self.mask_images[i].get_score(image, self.tmp_image)
-            mismatchScore = self.inverted_mask_images[i].get_score(image, self.tmp_image)    
+        self.app.set_configuration(configuration)
+        for i in range(len(self.mask_images)):
+            screenshot = self.app.make_screenshot(self.positions[i])
+            screenshot.store(self.tmp_image)
+            matchScore = self.mask_images[i].get_score(self.tmp_image)
+            if (DEBUG):
+                self.tmp_image.write(f"tmp/mask_{i}_match.png")
+            screenshot.store(self.tmp_image)
+            mismatchScore = self.inverted_mask_images[i].get_score(self.tmp_image)    
+            if (DEBUG):
+                self.tmp_image.write(f"tmp/mask_{i}_mismatch.png")
             score = BOOST_FACTOR_MATCHING_PIXELS * matchScore - mismatchScore
             fitness += score
         return fitness / len(self.mask_images)

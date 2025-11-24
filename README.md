@@ -40,5 +40,5 @@ views.
 
 - [Panda3D](https://panda3d.org/)
 - [uv](https://docs.astral.sh/uv/)
-- [Gentic Algorithm](https://en.wikipedia.org/wiki/Genetic_algorithm)
+- [Genetic Algorithm](https://en.wikipedia.org/wiki/Genetic_algorithm)
 

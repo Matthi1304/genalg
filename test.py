@@ -10,11 +10,14 @@ from panda3d.core import PNMImage
 from panda3d.core import Texture
 
 
-def invert_image_test():
+def flip_image_test():
     image = PNMImage()
-    image.read("textures/target_1.png")
-    image.setNumChannels(1)
+    image.read("img/9.png")
+    visualization.flip_image_and_exchange_black_with_white(image)
+    image.write("tmp/9_flipped.png")
 
+
+def _invert_image(image):
     black = PNMImage(image.getXSize(), image.getYSize(), 1)
     black.fill(0.0)
     white = PNMImage(image.getXSize(), image.getYSize(), 1)
@@ -26,20 +29,27 @@ def invert_image_test():
     # Set this image’s (x, y) to:
     #  if c <  threshold --> take from lt
     #  if c >= threshold --> take from ge
-    image.threshold(image, 0, 0.9, white, black)
+    inverted_image = PNMImage()
+    inverted_image.copyFrom(image)
+    inverted_image.threshold(image, 0, 0.9, white, black)
+    return inverted_image
 
-    image.write("tmp/target_1_inverted.png")
+
+def invert_image_test():
+    image = PNMImage("img/h_1.png")
+    image = _invert_image(image)
+    image.write("tmp/h_1_inverted.png")
 
 def image_test():
     print("black = 0.0")
     print("white = 1.0")
     image_1 = PNMImage()
-    image_1.read("textures/target_1.png")
+    image_1.read("img/h_1.png")
     image_1.setNumChannels(1)
     target = 1 - image_1.getAverageGray() 
 
     image_1i = PNMImage()
-    image_1i.read("textures/target_1i.png")
+    image_1i.read("img/h_1i.png")
     image_1i.setNumChannels(1)
     inverted_target = 1 - image_1i.getAverageGray()
 
@@ -77,78 +87,75 @@ def image_test():
 
 
 def configuration_test(app):
-    config = genetics.Genetics().generate_random_genome()
+    config = genetics.Genetics().random_individual(100).genom
     app.set_configuration(config)
     
     json_str = json.dumps(config, indent=4, check_circular=False)
     with open("tmp/config.json", "w") as f:
         f.write(json_str)
 
-    image = app.make_screenshot(hour=0)
+    image = app.make_screenshot(0)
     image.write("tmp/screenshot_config_before.png")
 
     app.set_configuration([])
-    image = app.make_screenshot(hour=0)
+    image = app.make_screenshot(0)
     image.write("tmp/screenshot_config_cleared.png")
 
     app.set_configuration(config)
-    image = app.make_screenshot(hour=0)
+    image = app.make_screenshot(0)
     image.write("tmp/screenshot_config_restored.png")
 
     print(f"configuration same? {app.get_configuration() == config}")
 
 
 def screenshot_test(app):
-    config = genetics.Genetics().generate_random_genome()
+    config = genetics.Individual.random_individual(30).genom
     app.set_configuration(config)
 
     for hour in range(1):
-        texture = app.make_screenshot(hour=hour)
+        texture = app.make_screenshot(hour * 30)
         print("type", type(texture))
         print("component_width", texture.component_width)
         print("num_components", texture.num_components)
         print("num_pages", texture.num_pages)
         print("ram_image_size", texture.ram_image_size)
         image = PNMImage()
-        image.read(f"textures/target_{hour}.png")
+        image.read(f"img/h_{hour + 1}.png")
         texture.store(image)
         image.setNumChannels(1)
-        image.write(f"tmp/digits_screenshot_{hour}.png")
+        image.write(f"tmp/digits_screenshot_{hour + 1}.png")
 
 
 def fitness_calculation_test():
+        positiveMask = fitness.MaskImage("img/h_1.png")
+        negativeMask = positiveMask.invert_image()
+
         print("fitness for best possible match")
-        calc_fitness_for_image(PNMImage("textures/target_0.png"), 0)
+        print(f"positive: {positiveMask.get_score(PNMImage("img/h_1.png"))}")
+        print(f"negative: {negativeMask.get_score(PNMImage("img/h_1.png"))}")
 
         print("fitness for worst possible match")
-        calc_fitness_for_image(PNMImage("textures/target_0i.png"), 0)
+        print(f"positive: {positiveMask.get_score(_invert_image(PNMImage("img/h_1.png")))}")
+        print(f"negative: {negativeMask.get_score(_invert_image(PNMImage("img/h_1.png")))}")
 
-
-def calc_fitness_for_image(image, hour):
-        positiveMask = fitness.MaskImage(f"textures/target_{hour}.png")
-        negativeMask = fitness.MaskImage(f"textures/target_{hour}i.png")
-
-        tmp_image = PNMImage()
-        tmp_image.copyFrom(positiveMask.image)
-
-        # convert image to texture
-        texture = Texture("dummy")
-        texture.load(image)
-
-
-        print(f"match score calculation for hour {hour}    = {positiveMask.get_score(texture, tmp_image):.3f}")
-        print(f"mismatch score calculation for hour {hour} = {negativeMask.get_score(texture, tmp_image):.3f}")
 
 
 def fitness_test(app):
     fitness.DEBUG = True
-    g = genetics.Genetics(size_of_genom=3, size_of_generation=10, tournament_size=2)
+    target_images = [f"img/h_{i}.png" for i in range(1, 13)]
+    g = genetics.Genetics(
+        size_of_genom=1000,
+        size_of_generation=1,
+        tournament_size=1,
+        survivor_rate=1.0,
+        target_images=target_images)
     g.run(app)
 
 
 if __name__ == "__main__":
     cases = {
         "invert-image": [invert_image_test, False],
+        "flip-image": [flip_image_test, False],
         "image": [image_test, False], 
         "screenshot": [screenshot_test, True], 
         "configuration": [configuration_test, True], 
