@@ -13,8 +13,8 @@ RADIUS = 15000
 QUANTIZATION = 100
 Q = RADIUS // QUANTIZATION # the following condition should hold: Q * QUANTIZATION == RADIUS 
 
-MAX_SCALE =  3000
-MIN_SCALE =   1000 # in real life this should be at least 40 mm
+MAX_SCALE = 6000
+MIN_SCALE =  100 # in real life this should be at least 40 mm
 
 NUM_PARENTS = 3 # must be at least 2
 
