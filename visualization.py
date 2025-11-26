@@ -61,7 +61,7 @@ class Visualizer(ShowBase):
         self.disableMouse()
         self.render.setShaderAuto()        
         self.setBackgroundColor(1, 1, 1, 1)
-        self.camera_distance = -60
+        self.camera_distance = -80
         self.camera.setPos(0, self.camera_distance, 0)
         self.camera.lookAt(0, 0, 0)
         self.setup_lighting()
@@ -84,7 +84,6 @@ class Visualizer(ShowBase):
             self.accept("arrow_right-repeat", self.turn_scene, [+1])
             self.accept("shift-arrow_left", self.turn_hour, [-1])
             self.accept("shift-arrow_right", self.turn_hour, [+1])
-            self.toggle_rotation(rotating=True)
             genLabelText("ESC/Q: Quit", 0)
             genLabelText("SPACE: Start/Stop Rotation", 1)
             genLabelText("UP/DOWN: Move Camera In/Out", 2)
@@ -172,6 +171,11 @@ class Visualizer(ShowBase):
     
     def move_camera(self, delta):
         self.camera_distance += delta
+        self.camera.setPos(0, self.camera_distance, 0)
+
+    
+    def set_camera_distance(self, distance):
+        self.camera_distance = distance
         self.camera.setPos(0, self.camera_distance, 0)
 
 

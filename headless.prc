@@ -1,4 +1,4 @@
-load-display p3headlessgl
+# load-display p3headlessgl
 
 window-type None
 win-size 128 128

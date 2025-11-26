@@ -1,4 +1,4 @@
-load-display p3headlessgl
+# load-display p3headlessgl
 # load-display pandagles2
 
 #window-type None

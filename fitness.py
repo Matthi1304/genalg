@@ -61,21 +61,21 @@ class MaskImage():
         return tmp_image
 
 
-BOOST_FACTOR_MATCHING_PIXELS = 1.05
-
-
 class FitnessFunction():
 
-    def __init__(self, app, mask_image_paths):
+    def __init__(self, app, mask_image_paths, fitness_function_factor=1.0):
         self.app = app
         self.mask_images = [MaskImage(path) for path in mask_image_paths]
         self.inverted_mask_images = [image.invert_image() for image in self.mask_images]
+
+        self.fitness_function_factor = fitness_function_factor
 
         self.tmp_image = PNMImage()
         self.tmp_image.copyFrom(self.mask_images[0].image)
         self.tmp_image.setNumChannels(1)
 
-        self.positions = [(i * (360.0 / len(self.mask_images))) for i in range(len(self.mask_images))]
+        count = len(self.mask_images)
+        self.positions = [(i * (360.0 / count)) for i in range(count)]
 
 
     def fitness_function(self, configuration):
@@ -91,6 +91,6 @@ class FitnessFunction():
             mismatchScore = self.inverted_mask_images[i].get_score(self.tmp_image)    
             if (DEBUG):
                 self.tmp_image.write(f"tmp/mask_{i}_mismatch.png")
-            score = BOOST_FACTOR_MATCHING_PIXELS * matchScore - mismatchScore
+            score = matchScore - mismatchScore * self.fitness_function_factor
             fitness += score
         return fitness / len(self.mask_images)

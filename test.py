@@ -10,6 +10,10 @@ from panda3d.core import PNMImage
 from panda3d.core import Texture
 
 
+def load_settings_test():
+    genetics.load_settings()
+
+
 def flip_image_test():
     image = PNMImage()
     image.read("img/9.png")
@@ -40,54 +44,9 @@ def invert_image_test():
     image = _invert_image(image)
     image.write("tmp/h_1_inverted.png")
 
-def image_test():
-    print("black = 0.0")
-    print("white = 1.0")
-    image_1 = PNMImage()
-    image_1.read("img/h_1.png")
-    image_1.setNumChannels(1)
-    target = 1 - image_1.getAverageGray() 
-
-    image_1i = PNMImage()
-    image_1i.read("img/h_1i.png")
-    image_1i.setNumChannels(1)
-    inverted_target = 1 - image_1i.getAverageGray()
-
-    image_bw = PNMImage()
-    image_bw.read("tmp/bw.png")
-    image_bw.setNumChannels(1)
-
-    image_bw.threshold(image_bw, 0, 0.9, image_1, image_bw)
-    # image_bw.write("tmp/a_good_pixels.png")
-    match = 1 - image_bw.getAverageGray()
-
-    image_bw.read("tmp/bw.png")
-    image_bw.setNumChannels(1)
-
-    image_bw.threshold(image_bw, 0, 0.9, image_1i, image_bw)
-    # image_bw.write("tmp/b_bad_pixels.png")
-    mismatch = 1 - image_bw.getAverageGray()
-
-    matchPercent = 1 - (target - match) / target
-
-    print(f"target level:     {target:.3f}")
-    print(f"match level:      {match:.3f}")
-    print(f"matchPercent:     {matchPercent:.3f}")
-   
-    mismatchPercent = (inverted_target - mismatch) / inverted_target
-
-    print()
-    print(f"inverted level:   {inverted_target:.3f}")
-    print(f"mismatch level:   {mismatch:.3f}")
-    print(f"mismatchPercent:  {mismatchPercent:.3f}")
-
-    score = matchPercent - mismatchPercent
-    print()
-    print(f"score:            {score:.3f}")
-
 
 def configuration_test(app):
-    config = genetics.Genetics().random_individual(100).genom
+    config = genetics.Individual.random_individual(100).genom
     app.set_configuration(config)
     
     json_str = json.dumps(config, indent=4, check_circular=False)
@@ -104,8 +63,6 @@ def configuration_test(app):
     app.set_configuration(config)
     image = app.make_screenshot(0)
     image.write("tmp/screenshot_config_restored.png")
-
-    print(f"configuration same? {app.get_configuration() == config}")
 
 
 def screenshot_test(app):
@@ -139,30 +96,21 @@ def fitness_calculation_test():
         print(f"negative: {negativeMask.get_score(_invert_image(PNMImage("img/h_1.png")))}")
 
 
-
 def fitness_test(app):
     fitness.DEBUG = True
-    target_images = [f"img/h_{i}.png" for i in range(1, 13)]
-    g = genetics.Genetics(
-        size_of_genom=1000,
-        size_of_generation=1,
-        tournament_size=1,
-        survivor_rate=1.0,
-        target_images=target_images)
-    g.run(app)
+    try:
+        target_images = [f"img/h_{i}.png" for i in range(1, 13)]
+        fitness_function = fitness.FitnessFunction(app, target_images)
+        with open("winner.1764013618.json", "r") as f:
+            config = json.load(f)
+        print("Fitness:", fitness_function.fitness_function(config))
+    finally:
+        fitness.DEBUG = False
 
 
 if __name__ == "__main__":
-    cases = {
-        "invert-image": [invert_image_test, False],
-        "flip-image": [flip_image_test, False],
-        "image": [image_test, False], 
-        "screenshot": [screenshot_test, True], 
-        "configuration": [configuration_test, True], 
-        "fitness": [fitness_test, True],
-        "fitness-calculation": [fitness_calculation_test, False]
-    }
-    arguments = ", ".join(sorted([k for k in cases.keys()])).replace("'", " ")
+    cases = [k[: -5] for k in dir() if k.endswith("_test") and not k.startswith("_")]
+    arguments = ", ".join(sorted([k for k in cases])).replace("'", " ")
     if len(sys.argv) == 1:
         print(f"Please provide an argument: {arguments}")
         sys.exit(1)
@@ -170,8 +118,8 @@ if __name__ == "__main__":
         print(f"Unknown argument. Please provide one of: {arguments}")
         sys.exit(1)
     os.makedirs("tmp", exist_ok=True)
-    c = cases.get(sys.argv[1])
-    if c[1]:
-        visualization.headless_app(callback=c[0])
+    function = globals().get(sys.argv[1] + '_test')
+    if function.__code__.co_argcount == 1:
+        visualization.headless_app(callback=function)
     else:
-        c[0]()
+        function()
