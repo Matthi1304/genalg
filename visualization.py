@@ -84,6 +84,7 @@ class Visualizer(ShowBase):
             self.accept("arrow_right-repeat", self.turn_scene, [+1])
             self.accept("shift-arrow_left", self.turn_hour, [-1])
             self.accept("shift-arrow_right", self.turn_hour, [+1])
+            self.toggle_rotation(rotating=False)
             genLabelText("ESC/Q: Quit", 0)
             genLabelText("SPACE: Start/Stop Rotation", 1)
             genLabelText("UP/DOWN: Move Camera In/Out", 2)
