@@ -13,4 +13,4 @@ wheels/
 tmp/
 
 # MacOS
-.DS_Stor
+.DS_Store
