@@ -3,6 +3,7 @@
     
 import json
 from datetime import datetime
+import random
 import sys
 from panda3d.core import *
 from direct.showbase.ShowBase import ShowBase
@@ -47,14 +48,18 @@ class Clock(ShowBase):
         self.accept("f", self.toggle_fullscreen)
         self.accept("t", self.toggle_fullscreen)
         self.accept("space", self.toggle_fullscreen)
-        self.accept("r", self.set_color, [self.red])
-        self.accept("g", self.set_color, [self.green])
-        self.accept("b", self.set_color, [self.blue])
-        self.accept("y", self.set_color, [self.yellow])
-        self.accept("w", self.set_color, [self.white])
+        self.accept("c", self.change_color)
         self.accept("i", self.show_all_digits)
         self.accept("q", sys.exit)
         self.accept("escape", sys.exit)
+
+        print("=======================================================================")
+        print("Clock initialized with configuration:", config_file)
+        print("Press 'f', 't' or 'space' to toggle fullscreen.")
+        print("Press 'c' to change highlight colors.")
+        print("Press 'i' to toggle visibility of all digits.")
+        print("Press 'q' or 'escape' to quit.")
+        print("=======================================================================")
 
         self.set_color(self.white, self.green, self.red)
 
@@ -93,10 +98,20 @@ class Clock(ShowBase):
 
     def set_color(self, *colors):
         if len(colors) == 1:
-            self.highlight_color = [colors[0] for _ in rage(6)]
+            self.highlight_color = [colors[0] for _ in range(6)]
         elif len(colors) == 3:
             self.highlight_color = [colors[0], colors[0], colors[1], colors[1], colors[2], colors[2]]
 
+
+    def change_color(self):
+        if self.highlight_color[0] == self.white:
+            self.set_color(self.green, self.blue, self.red)
+        elif self.highlight_color[0] == self.green:
+            self.set_color(self.yellow, self.red, self.blue)
+        elif self.highlight_color[0] == self.yellow:
+            self.set_color(self.red, self.green, self.yellow)
+        else:
+            self.set_color(self.white, self.green, self.red)
 
     
     def show_all_digits(self):
@@ -120,17 +135,29 @@ class Clock(ShowBase):
 
 
     def display_time(self, t):
+        if not hasattr(self, 'last_time'):
+            self.last_time = None
+        if t == self.last_time:
+            return
+        self.last_time = t
         if len(t) == 5:
             t = '0' + t
         i = 1 if t[0:2] == '00' else 0
+        lastDigits = []
         for item in self.placed_numbers:
             d = int(t[i]) if i < len(t) else -1
+            item['text_node'].setFg(self.default_color)            
             if item['digit'] == d:
-                item['text_node'].setFg(self.highlight_color[i])
-                i += 1
-            else:
-                item['text_node'].setFg(self.default_color)            
-        if i < len(t) and not self.warned[int(t[i])]:
+                if (i == len(t) - 1):
+                    lastDigits.append(item)
+                else:
+                    item['text_node'].setFg(self.highlight_color[i])
+                    i += 1
+        if lastDigits:
+            if len(lastDigits) > 1:
+                random.shuffle(lastDigits)
+            lastDigits[0]['text_node'].setFg(self.highlight_color[-1])
+        elif i < len(t) and not self.warned[int(t[i])]:
             print(f"Warning: Not all digits could be displayed, missing configuration for digit {t[i]} at {t[:-4]}:{t[-4:-2]}:{t[-2:]}")
             self.warned[int(t[i])] = True
 
