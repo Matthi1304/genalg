@@ -79,6 +79,7 @@ class CalibrationApp(ShowBase):
         # Accept number keys 0-9
         for i in range(10):
             self.accept(str(i), self.place_number, [i])
+        
         print("=======================================================================")        
         self.onScreenText(f"Config: {self.config_file}")
         self.onScreenText("Use mouse to move the spot, press and hold left mouse button to resize.")
@@ -200,19 +201,19 @@ class CalibrationApp(ShowBase):
 
     def place_number(self, digit):
         """Place a number at the current spot position"""
+        text = 'O' if digit == 0 else str(digit)
         if self.current_text:
-            self.current_text.text = str(digit)
-            return
-        # Create text node for the number
-        self.current_text = OnscreenText(
-            text = "O" if digit == 0 else str(digit),
-            pos=self.getNumberPosition(),
-            scale=self.spot_size * 2,
-            fg=(1, 0, 0, 1),  # Red color
-            align=TextNode.ACenter,
-            font=self.font,
-            mayChange=True
-        )
+            self.current_text.text = text
+        else:
+            self.current_text = OnscreenText(
+                text = text,
+                pos=self.getNumberPosition(),
+                scale=self.spot_size * 2,
+                fg=(1, 0, 0, 1),  # Red color
+                align=TextNode.ACenter,
+                font=self.font,
+                mayChange=True
+            )
 
 
     def fix_number(self):
@@ -289,6 +290,7 @@ class CalibrationApp(ShowBase):
                 scale=item['scale'],
                 fg=(1, 0, 0, 1),  # Red color
                 align=TextNode.ACenter,
+                font=self.font,
                 mayChange=True
             )
 
