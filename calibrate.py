@@ -340,9 +340,9 @@ class CalibrationApp(ShowBase):
         print(f"   Total placements: {len(self.placed_numbers)} (minimum number of numbers needed: {sum(amounts_needed)})")
         for i, count in enumerate(digit_counters):
             if (count < amounts_needed[i]):
-                print(f"   digit {i}: {count:2d} of {amounts_needed[i]}) *** MISSING: {amounts_needed[i] - count} ***")
+                print(f"   digit {i}: {count:2d}, min={amounts_needed[i]}) *** MISSING: {amounts_needed[i] - count} ***")
             else:
-                print(f"   digit {i}: {count:2d} of {amounts_needed[i]})")
+                print(f"   digit {i}: {count:2d}, min={amounts_needed[i]}")
         warned = [False for _ in range(10)]
         for i in range(86400):
             self.check_time(
