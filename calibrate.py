@@ -329,7 +329,7 @@ class CalibrationApp(ShowBase):
         with open(self.config_file, 'w') as f:
             json.dump(config, f, indent=2)
         
-        print("Configuration saved to calibration.json")
+        print(f"Configuration saved to {self.config_file}")
 
 
     def mouse_move(self, task):
