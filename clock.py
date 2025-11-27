@@ -4,10 +4,7 @@
 import json
 from datetime import datetime
 import sys
-from panda3d.core import (
-    Point2, Point3, TextNode, TransparencyAttrib, SamplerState,
-    PNMImage, Texture, TextureStage, CardMaker, WindowProperties
-)
+from panda3d.core import *
 from direct.showbase.ShowBase import ShowBase
 from direct.task import Task
 from direct.gui.DirectGui import OnscreenText  
@@ -16,6 +13,12 @@ class Clock(ShowBase):
 
     def __init__(self, config_file="beamer.json"):
         ShowBase.__init__(self)
+
+        di = base.pipe.getDisplayInformation()
+        print("Available display sizes:")
+        for index in range(di.getTotalDisplayModes()):
+            print(f"{di.getDisplayModeWidth(index)}x{di.getDisplayModeHeight(index)}")  
+
         self.black = (0, 0, 0, 1)
         self.white = (1, 1, 1, 1)
         self.red = (1, 0, 0, 1 )
@@ -122,6 +125,7 @@ class Clock(ShowBase):
 
 
 if __name__ == "__main__":
+    loadPrcFile("clock.prc")
     config_file = "beamer.json"
     if (len(sys.argv) > 1):
         config_file = sys.argv[1]

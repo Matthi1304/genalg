@@ -27,6 +27,11 @@ class CalibrationApp(ShowBase):
     def __init__(self, config_file="beamer.json"):
         ShowBase.__init__(self)
 
+        print("Available display sizes:")
+        di = base.pipe.getDisplayInformation()
+        for index in range(di.getTotalDisplayModes()):
+            print(f"{di.getDisplayModeWidth(index)}x{di.getDisplayModeHeight(index)}")  
+        
         self.config_file = config_file
         # State variables
         self.spot_pos = Point2(0, 0)
@@ -362,6 +367,7 @@ class CalibrationApp(ShowBase):
 
 
 if __name__ == "__main__":
+    loadPrcFile("clock.prc")
     config_file = "beamer.json"
     if (len(sys.argv) > 1):
         config_file = sys.argv[1]
