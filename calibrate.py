@@ -14,6 +14,7 @@
 # this way the beamer can be calibrated to fit the hour plate
 
 from logging import config
+import os
 import sys
 import json
 from panda3d.core import *
