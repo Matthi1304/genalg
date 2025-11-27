@@ -15,6 +15,8 @@ class Clock(ShowBase):
     def __init__(self, config_file="beamer.json", time=None):
         ShowBase.__init__(self)
 
+        font = loader.loadFont('Epoch-BF6881cf42e6637.otf')
+
         di = base.pipe.getDisplayInformation()
         print("Available display sizes:")
         for index in range(di.getTotalDisplayModes()):
@@ -117,6 +119,8 @@ class Clock(ShowBase):
     def show_all_digits(self):
         if self.default_color == self.white:
             self.default_color = self.nearly_black
+        elif self.default_color == self.nearly_black:
+            self.default_color = self.black
         else:
             self.default_color = self.white
 
