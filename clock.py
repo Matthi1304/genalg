@@ -26,7 +26,7 @@ class Clock(ShowBase):
         self.blue = (0, 0, 1, 1)
         self.yellow = (1, 1, 0, 1)
         self.nearly_white = (0.8, 0.8, 0.8, 1)
-        self.nearly_black = (0.01, 0.01, 0.01, 1)
+        self.nearly_black = (0.1, 0.1, 0.1, 1)
         self.highlight_color = self.white
         self.default_color = self.nearly_black
         self.background_color = self.black
