@@ -29,11 +29,10 @@ class CalibrationApp(ShowBase):
     def __init__(self, config_file="beamer.json"):
         ShowBase.__init__(self)
 
-        print("Available display sizes:")
-        di = base.pipe.getDisplayInformation()
-        for index in range(di.getTotalDisplayModes()):
-            print(f"{di.getDisplayModeWidth(index)}x{di.getDisplayModeHeight(index)}")  
-        
+        self.font = None
+        if os.path.exists("Epoch-BF6881cf42e6637.otf"):
+            self.font = loader.loadFont('Epoch-BF6881cf42e6637.otf')
+    
         self.config_file = config_file
         # State variables
         self.spot_pos = Point2(0, 0)
@@ -210,6 +209,7 @@ class CalibrationApp(ShowBase):
             scale=self.spot_size * 2,
             fg=(1, 0, 0, 1),  # Red color
             align=TextNode.ACenter,
+            font=self.font,
             mayChange=True
         )
 
@@ -313,6 +313,7 @@ class CalibrationApp(ShowBase):
                     scale=item['scale'],
                     fg=(0, 1, 0, 1),  # Green color (fixed)
                     align=TextNode.ACenter,
+                    font=self.font,
                     mayChange=True
                 )
                 item['text_node'] = text_node
@@ -326,6 +327,12 @@ class CalibrationApp(ShowBase):
 
     def print_stats(self):
         """Print statistics of placed numbers"""
+
+        print("Available display sizes:")
+        di = base.pipe.getDisplayInformation()
+        for index in range(di.getTotalDisplayModes()):
+            print(f"{di.getDisplayModeWidth(index)}x{di.getDisplayModeHeight(index)}")  
+
         self.placed_numbers.sort(key=SORT)
         digit_counters = [0 for _ in range(10)]
         for item in self.placed_numbers:

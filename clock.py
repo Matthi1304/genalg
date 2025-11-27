@@ -3,6 +3,7 @@
     
 import json
 from datetime import datetime
+import os
 import random
 import sys
 from panda3d.core import *
@@ -15,7 +16,9 @@ class Clock(ShowBase):
     def __init__(self, config_file="beamer.json", time=None):
         ShowBase.__init__(self)
 
-        font = loader.loadFont('Epoch-BF6881cf42e6637.otf')
+        self.font = None
+        if os.path.exists("Epoch-BF6881cf42e6637.otf"):
+            self.font = loader.loadFont('Epoch-BF6881cf42e6637.otf')
 
         di = base.pipe.getDisplayInformation()
         print("Available display sizes:")
@@ -87,6 +90,7 @@ class Clock(ShowBase):
                     scale=item['scale'],
                     fg=(0.01, 0.01, 0.01, 1),  # black
                     align=TextNode.ACenter,
+                    font=self.font,
                     mayChange=True
                 )
                 item['text_node'] = text_node
