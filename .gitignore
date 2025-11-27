@@ -11,3 +11,6 @@ wheels/
 
 # temporary files from application
 tmp/
+
+# MacOS
+.DS_Stor
