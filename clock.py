@@ -62,7 +62,7 @@ class Clock(ShowBase):
             with open(config_file, "r") as f:
                 config = json.load(f)
             # todo: find a better sorting order for digits
-            config.sort(key=lambda item: (-item['x'],item['y']))
+            config.sort(key=lambda item: (item['x'], -item['y']))
             # Load each number from the config into an OnscreenText
             for item in config:
                 # Create text node for the number (green, fixed)
