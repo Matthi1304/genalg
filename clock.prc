@@ -1,5 +1,5 @@
 # window settings
-win-size 1024 720
+win-size 1280 720
 win-origin 150 50
 # fullscreen #t
 window-title CLOCK | by Matthis Jodeleit
