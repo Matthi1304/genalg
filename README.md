@@ -1,7 +1,7 @@
 # About the Project
 
 A 3D projekt with Panda3D and Python, ultimate goal is to find a configuration
-of digits floating in space which build a number
+of digits floating in space which build a clock.
 
 
 ## Installation
