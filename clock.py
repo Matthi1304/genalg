@@ -145,12 +145,11 @@ class Clock(ShowBase):
     def display_time(self, t):
         if not hasattr(self, 'last_time'):
             self.last_time = None
-        if t == self.last_time:
-            return
-        self.last_time = t
         if len(t) == 5:
             t = '0' + t
-        i = 1 if t[0:2] == '00' else 0
+        if t == self.last_time:
+            return
+        i = 1 if t[0] == '0' else 0
         lastDigits = []
         for item in self.placed_numbers:
             d = int(t[i]) if i < len(t) else -1
@@ -168,6 +167,8 @@ class Clock(ShowBase):
         elif i < len(t) and not self.warned[int(t[i])]:
             print(f"Warning: Not all digits could be displayed, missing configuration for digit {t[i]} at {t[:-4]}:{t[-4:-2]}:{t[-2:]}")
             self.warned[int(t[i])] = True
+        self.last_time = t
+
 
 
 if __name__ == "__main__":
