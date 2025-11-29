@@ -32,6 +32,7 @@ class ClockBase(ShowBase):
         self.accept("i", self.print_stats)
         self.accept("c", self.change_digit_color)
         self.accept("f11", self.toggle_fullscreen)
+        self.accept("f", self.toggle_fullscreen)
 
         print("=======================================================================")        
         self.add_help_text(f"Config: {self.config_file}")
@@ -39,7 +40,7 @@ class ClockBase(ShowBase):
         self.add_help_text("escape = quit program")
         self.add_help_text("i = print statistics")
         self.add_help_text("c = change highlight colors")
-        self.add_help_text("F11 = toggle fullscreen")
+        self.add_help_text("F11 / f = toggle fullscreen")
 
 
 
@@ -153,17 +154,20 @@ class ClockBase(ShowBase):
         min_y = min(item['y'] for item in self.placed_numbers)
         max_y = max(item['y'] for item in self.placed_numbers)
         print(f"Display area X: {min_x} - {max_x}, Y: {min_y} - {max_y}")
-        step_x = (max_x - min_x) / 2
-        step_y = (max_y - min_y) / 3
-        quadrants = [[] for _ in range(6)]
-        q = 0
-        for x in (min_x, min_x + step_x): # two columns
-            for y in (min_y, min_y + step_y, min_y + 2 * step_y): # three rows
-                for digit in self.placed_numbers:
-                    dx, dy = digit['x'], digit['y']
-                    if dx >= x and dx < x + step_x and dy >= y and dy < y + step_y:
-                        quadrants[q].append(digit)
-                q += 1
+        quadrants = [[] for _ in range(4)]
+        mid_x = (min_x + max_x) / 2
+        mid_y = (min_y + max_y) / 2
+        for item in self.placed_numbers:
+            x = item['x']
+            y = item['y']
+            if x < mid_x and y < mid_y:
+                quadrants[2].append(item)  # Bottom-left
+            elif x >= mid_x and y < mid_y:
+                quadrants[3].append(item)  # Bottom-right
+            elif x < mid_x and y >= mid_y:
+                quadrants[0].append(item)  # Top-left
+            else:
+                quadrants[1].append(item)  # Top-right
         self.quadrants = quadrants
 
 
@@ -192,13 +196,14 @@ class ClockBase(ShowBase):
             else:
                 print(f"   digit {i}: {count:2d}, min={amounts_needed[i]}")
         self.distribute_digits_in_quadrants()
-        colors = [ (1,0,0,1), (0,1,0,1), (0,0,1,1), (1,1,0,1), (1,0,1,1), (0,1,1,1) ]
+        colors = [ (0,1,0,1), (0,0,1,1), (1,1,0,1), (1,0,1,1) ] # green / blue / yellow / magenta
+        needed = [ set([0,1,2]), set(range(10)), set(range(6)), set(range(10)) ]
         all = set([i for i in range(10)])
         for i, quad in enumerate(self.quadrants):
             for digit in quad:
                 digit['text_node'].setFg(colors[i])
             digits = set([digit['digit'] for digit in quad])
-            print(f" Quadrant {i}: count = {len(digits):3d} | included = {str(digits):<30} | missing = {all - digits}")
+            print(f" Quadrant {i}: count = {len(digits):3d} | included = {str(digits):<30} | missing = {needed[i] - digits}")
         print("=======================================================================")
     
 
