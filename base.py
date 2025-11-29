@@ -149,6 +149,9 @@ class ClockBase(ShowBase):
 
 
     def distribute_digits_in_quadrants(self):
+        if not self.placed_numbers:
+            print("No placed numbers to distribute in quadrants")
+            return
         min_x = min(item['x'] for item in self.placed_numbers)
         max_x = max(item['x'] for item in self.placed_numbers)
         min_y = min(item['y'] for item in self.placed_numbers)
@@ -173,6 +176,9 @@ class ClockBase(ShowBase):
 
     def print_stats(self):
         """Print statistics of placed numbers"""
+        if not self.placed_numbers:
+            print("No numbers placed yet")
+            return
         if False:
             print("Available display sizes:")
             di = base.pipe.getDisplayInformation()
