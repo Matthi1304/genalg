@@ -243,11 +243,11 @@ class CalibrationApp(ShowBase):
                 'digit': int(digit),
                 'x': self.current_text.getPos()[0],
                 'y': self.current_text.getPos()[1],
-                'scale': self.current_text.getScale()[0],
+                'xscale': self.current_text.getScale()[0],
+                'yscale': self.current_text.getScale()[1],
+                'roll': self.current_text.getRoll(),
                 'text_node': self.current_text
             })
-            
-            # Clear current text reference
             self.current_text = None
 
 
@@ -286,21 +286,13 @@ class CalibrationApp(ShowBase):
             return  # Already editing a number
         item = self.numberAtMouse()
         if item is not None:
-            item['text_node'].removeNode()
+            self.current_text = item['text_node']
             self.placed_numbers.remove(item)
+            self.current_text.setFg((1, 0, 0, 1))
             # Recreate as current (red) number
-            self.spot_size = item['scale'] / 2            
+            self.spot_size = item['xscale'] / 2            
             self.spot.setPos(item['x'], 0, item['y'])
             self.spot.setScale(self.spot_size)
-            self.current_text = OnscreenText(
-                text=str(item['digit']),
-                pos=self.getNumberPosition(),
-                scale=item['scale'],
-                fg=(1, 0, 0, 1),  # Red color
-                align=TextNode.ACenter,
-                font=self.font,
-                mayChange=True
-            )
 
 
     def quit_and_save(self):
@@ -318,17 +310,25 @@ class CalibrationApp(ShowBase):
             # Load each number from the config
             for item in config:
                 # Create text node for the number (green, fixed)
+                # 'xscale': self.current_text.getScale()[0],
+                # 'yscale': self.current_text.getScale()[1],
+                # 'roll': self.current_text.getTextR(),
+                if item.get('scale', None) is not None:
+                    legacy_scale = item.get('scale')
+                    item['xscale'] = legacy_scale
+                    item['yscale'] = legacy_scale
+                    item['roll'] = 0
                 text_node = OnscreenText(
                     text="O" if item['digit'] == 0 else str(item['digit']),
                     pos=(item['x'], item['y']),
-                    scale=item['scale'],
+                    scale=(item['xscale'], item['yscale']),
                     fg=(0, 1, 0, 1),  # Green color (fixed)
                     align=TextNode.ACenter,
                     font=self.font,
+                    roll=item['roll'],
                     mayChange=True
                 )
                 item['text_node'] = text_node
-            
             print(f"Loaded {len(config)} numbers from calibration.json")
         except FileNotFoundError:
             print("No existing calibration.json found, starting fresh")
@@ -366,13 +366,10 @@ class CalibrationApp(ShowBase):
         """Save configuration to JSON and quit"""
         config = []
         for item in self.placed_numbers:
-            config.append({
-                'digit': item['digit'],
-                'x': item['x'],
-                'y': item['y'],
-                'scale': item['scale']
-            })
-        config.sort(key=SORT)
+            data = item.copy()
+            # Remove text_node before saving
+            del data['text_node']
+            config.append(data)
         # Save to JSON file
         with open(self.config_file, 'w') as f:
             json.dump(config, f, indent=2)
@@ -381,7 +378,6 @@ class CalibrationApp(ShowBase):
 
     def move(self, dx, dy):
         """Move spot position by delta"""
-        print(f"Move by ({dx}, {dy})")
         if self.current_text:
             x, y = self.current_text.getPos()
             self.current_text.setPos(x + dx, y + dy)
