@@ -53,10 +53,10 @@ class CalibrationApp(ClockBase):
         self.accept("shift-arrow_left", self.resize, [-0.01])
         self.accept("shift-arrow_left-repeat", self.resize, [-0.01])
 
-        self.accept("v", self.roll_number, [-0.1])
-        self.accept("v-repeat", self.roll_number, [-0.1])
-        self.accept("shift-v", self.roll_number, [0.1])
-        self.accept("shift-v-repeat", self.roll_number, [0.1])
+        self.accept("v", self.roll_number, [-0.3])
+        self.accept("v-repeat", self.roll_number, [-0.3])
+        self.accept("shift-v", self.roll_number, [0.3])
+        self.accept("shift-v-repeat", self.roll_number, [0.3])
 
         self.accept("h", self.rotate_number, [-0.01])
         self.accept("h-repeat", self.rotate_number, [-0.01])
