@@ -14,3 +14,9 @@ tmp/
 
 # MacOS
 .DS_Store
+
+# we are not allowed to redestribute the font
+Epoch*.otf
+
+# files produced by us
+winner.*.json
