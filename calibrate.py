@@ -13,11 +13,12 @@ SORT = lambda item: (item['x'], -item['y'])
 class CalibrationApp(ClockBase):
 
     def __init__(self, config_file="beamer.json"):
-        super().__init__(config_file=config_file, digit_color=(0, 1, 0, 1))
+        super().__init__(digit_color=(0, 1, 0, 1))
 
         self.spot_size = 0.3
         self.create_spot()
         self.current_text = None
+        self.red = (1, 0, 0, 1)
 
         # Setup mouse and keyboard events
         # Task to update spot position based on mouse
@@ -34,14 +35,14 @@ class CalibrationApp(ClockBase):
         self.accept("shift-wheel_down", self.increase_number, [-1])
         self.accept("mouse2", lambda: self.increase_number(1))
 
-        self.accept("arrow_up", self.move, [0, 0.001])
-        self.accept("arrow_up-repeat", self.move, [0, 0.001])
-        self.accept("arrow_down", self.move, [0, -0.001])
-        self.accept("arrow_down-repeat", self.move, [0, -0.001])
-        self.accept("arrow_right", self.move, [0.001, 0])
-        self.accept("arrow_right-repeat", self.move, [0.001, 0])
-        self.accept("arrow_left", self.move, [-0.001, 0])
-        self.accept("arrow_left-repeat", self.move, [-0.001, 0])
+        self.accept("arrow_up", self.keyboard_move, [0, 0.001])
+        self.accept("arrow_up-repeat", self.keyboard_move, [0, 0.001])
+        self.accept("arrow_down", self.keyboard_move, [0, -0.001])
+        self.accept("arrow_down-repeat", self.keyboard_move, [0, -0.001])
+        self.accept("arrow_right", self.keyboard_move, [0.001, 0])
+        self.accept("arrow_right-repeat", self.keyboard_move, [0.001, 0])
+        self.accept("arrow_left", self.keyboard_move, [-0.001, 0])
+        self.accept("arrow_left-repeat", self.keyboard_move, [-0.001, 0])
 
         self.accept("shift-arrow_up", self.resize, [0.01])
         self.accept("shift-arrow_up-repeat", self.resize, [0.01])
@@ -64,33 +65,23 @@ class CalibrationApp(ClockBase):
 
         self.accept("q", self.quit_and_save)
         self.accept("s", self.save)
-        self.accept("f", self.toggle_fullscreen)
-        self.accept("i", self.print_stats)
-        self.accept("h", self.toggle_help)
-        self.accept("escape", sys.exit)
-
+    
         # Accept number keys 0-9
         for i in range(10):
             self.accept(str(i), self.place_number, [i])
         
-        print("=======================================================================")        
-        self.onScreenText(f"Config: {self.config_file}")
-        self.onScreenText("Use mouse to move the spot, use mouse wheel to resize.")
-        self.onScreenText("Click to set digit, right click to remove digit.")
-        self.onScreenText("Use arrow keys to nudge the digit position.")
-        self.onScreenText("Use shift + mouse wheel to change between digits.")
-        self.onScreenText("Use shift + arrow keys to resize digit.")
-        self.onScreenText("Use ctrl + arrow left/right to rotate digit (ctrl + shift for vertical rotation).")
-        self.onScreenText("Space to fix/unfix digit.")
-        self.onScreenText("h = hide/show this help")
-        self.onScreenText("f = toggle fullscreen")
-        self.onScreenText("i = print statistics")
-        self.onScreenText("s = save configuration")
-        self.onScreenText("q = quit (and save configuration)")
-        self.onScreenText("escape = quit without saving")
+        self.add_help_text("Use mouse to move the spot, use mouse wheel to resize")
+        self.add_help_text("Click to set digit, right click to remove digit")
+        self.add_help_text("Use arrow keys to nudge the digit position")
+        self.add_help_text("Use shift + mouse wheel to change between digits")
+        self.add_help_text("Use shift + arrow keys to resize digit")
+        self.add_help_text("Use ctrl + arrow left/right to rotate digit (ctrl + shift for vertical rotation)")
+        self.add_help_text("Space to fix/unfix digit")
+        self.add_help_text("s = save configuration")
+        self.add_help_text("q = quit (and save configuration)")
         print("=======================================================================")
 
-        self.load_configuration()
+        self.load_configuration(config_file=config_file)
 
     
     def create_spot(self):
@@ -160,7 +151,7 @@ class CalibrationApp(ClockBase):
                 text = text,
                 pos=self.getNumberPosition(),
                 scale=self.spot_size * 2,
-                fg=(1, 0, 0, 1),  # Red color
+                fg=self.red,
                 align=TextNode.ACenter,
                 font=self.font,
                 mayChange=True
@@ -171,7 +162,7 @@ class CalibrationApp(ClockBase):
         """Fix the current number (turn it green)"""
         if self.current_text:
             # Change color to green
-            self.current_text.setFg((0, 1, 0, 1))
+            self.current_text.setFg(self.digit_color)
             digit = self.current_text.text
             digit = 0 if digit == 'O' else int(digit)
             self.placed_numbers.append({
@@ -195,10 +186,10 @@ class CalibrationApp(ClockBase):
         x_center = self.spot.getX()
         y_center = self.spot.getZ() - tolerance
         item = None        
-        for data in self.placed_numbers:
-            dist = ((data['x'] - x_center) ** 2 + (data['y'] - y_center) ** 2) ** 0.5
+        for digit in self.placed_numbers:
+            dist = ((digit['x'] - x_center) ** 2 + (digit['y'] - y_center) ** 2) ** 0.5
             if dist < tolerance:
-                item = data
+                item = digit
                 tolerance = dist  # Update tolerance to closest
         return item
 
@@ -223,8 +214,7 @@ class CalibrationApp(ClockBase):
         if item is not None:
             self.current_text = item['text_node']
             self.placed_numbers.remove(item)
-            self.current_text.setFg((1, 0, 0, 1))
-            # Recreate as current (red) number
+            self.current_text.setFg(self.red)
             self.spot_size = item['xscale'] / 2            
             self.spot.setPos(item['x'], 0, item['y'])
             self.spot.setScale(self.spot_size)
@@ -237,7 +227,7 @@ class CalibrationApp(ClockBase):
         sys.exit()
 
 
-    def move(self, dx, dy):
+    def keyboard_move(self, dx, dy):
         """Move spot position by delta"""
         if self.current_text:
             self.spot.hide()  # Hide spot while moving with keyboard
@@ -261,10 +251,10 @@ class CalibrationApp(ClockBase):
             self.current_text.setPos(x, y)
         else:
             if hasattr(self, 'text_node_at_mouse') and self.text_node_at_mouse:
-                self.text_node_at_mouse.setFg((0, 1, 0, 1))
+                self.text_node_at_mouse.setFg(self.digit_color)
             item = self.numberAtMouse()
             if item is not None:
-                item['text_node'].setFg((1, 0, 0, 1))
+                item['text_node'].setFg(self.red)
                 self.text_node_at_mouse = item['text_node']
         return Task.cont
     

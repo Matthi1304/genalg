@@ -8,7 +8,7 @@ from direct.gui.DirectGui import OnscreenText
 
 class ClockBase(ShowBase):
 
-    def __init__(self, config_file="beamer.json", digit_color=(0,1,0,1)):
+    def __init__(self, config_file=None, digit_color=(0,1,0,1)):
         super().__init__()
         self.config_file = config_file
         self.placed_numbers = []  # [{digit, x, y, scale, text_node},..]
@@ -20,9 +20,37 @@ class ClockBase(ShowBase):
         self.disableMouse()        
         # Setup orthographic camera for 2D
         self.camera.setPos(0, -10, 0)
-        self.camera.lookAt(0, 0, 0)                
-        # Setup background
+        self.camera.lookAt(0, 0, 0)
+
         self.setBackgroundColor(0, 0, 0, 1)
+
+        if config_file is not None:
+            self.load_configuration(self.config_file)
+
+        self.accept("h", self.toggle_help)
+        self.accept("escape", sys.exit)
+        self.accept("i", self.print_stats)
+        self.accept("c", self.change_digit_color)
+        self.accept("f11", self.toggle_fullscreen)
+
+        print("=======================================================================")        
+        self.add_help_text(f"Config: {self.config_file}")
+        self.add_help_text("h = hide/show this help")
+        self.add_help_text("escape = quit program")
+        self.add_help_text("i = print statistics")
+        self.add_help_text("c = change highlight colors")
+        self.add_help_text("F11 = toggle fullscreen")
+
+
+
+    def change_digit_color(self):
+        if self.digit_color == (0, 1, 0, 1):
+            self.set_digit_color((1, 1, 0, 1))
+        elif self.digit_color == (1, 1, 0, 1):
+            self.set_digit_color((0, 0, 1, 1))
+        else:
+            self.set_digit_color((0, 1, 0, 1))
+
 
 
     def set_digit_color(self, color):
@@ -32,8 +60,10 @@ class ClockBase(ShowBase):
             item['text_node'].setFg(color)
 
 
-    def load_configuration(self):
+    def load_configuration(self, config_file="beamer.json"):        
         """Load configuration from JSON file if it exists"""
+        print(f"Loading configuration from {config_file}")
+        self.config_file = config_file
         try:
             with open(self.config_file, 'r') as f:
                 config = json.load(f)
@@ -60,11 +90,11 @@ class ClockBase(ShowBase):
                     mayChange=True
                 )
                 item['text_node'] = text_node
-            print(f"Loaded {len(config)} numbers from calibration.json")
+            print(f"Loaded {len(config)} numbers from {config_file}")
         except FileNotFoundError:
-            print("No existing calibration.json found, starting fresh")
-        except json.JSONDecodeError:
-            print("Error reading calibration.json, starting fresh")
+            print(f"{config_file} not found")
+        except json.JSONDecodeError as e:
+            print(f"{config_file} contains invalid JSON: {e.msg}")
 
 
     def save(self):
@@ -81,8 +111,7 @@ class ClockBase(ShowBase):
         print(f"Configuration saved to {self.config_file}")
 
 
-    # todo: rename to add_help_text
-    def onScreenText(self, text):
+    def add_help_text(self, text):
         print(text)
         if not hasattr(self, 'helpTexts'):
             self.helpTexts = []
@@ -108,7 +137,8 @@ class ClockBase(ShowBase):
                 text.show()
             else:
                 text.hide()
-    
+
+
     def toggle_fullscreen(self):
         """Toggle between fullscreen and windowed mode"""
         fullscreen = self.win.getProperties().getFullscreen()
@@ -117,13 +147,34 @@ class ClockBase(ShowBase):
         base.win.request_properties(wp)
 
 
+    def distribute_digits_in_quadrants(self):
+        min_x = min(item['x'] for item in self.placed_numbers)
+        max_x = max(item['x'] for item in self.placed_numbers)
+        min_y = min(item['y'] for item in self.placed_numbers)
+        max_y = max(item['y'] for item in self.placed_numbers)
+        print(f"Display area X: {min_x} - {max_x}, Y: {min_y} - {max_y}")
+        step_x = (max_x - min_x) / 2
+        step_y = (max_y - min_y) / 3
+        quadrants = [[] for _ in range(6)]
+        q = 0
+        for x in (min_x, min_x + step_x): # two columns
+            for y in (min_y, min_y + step_y, min_y + 2 * step_y): # three rows
+                for digit in self.placed_numbers:
+                    dx, dy = digit['x'], digit['y']
+                    if dx >= x and dx < x + step_x and dy >= y and dy < y + step_y:
+                        quadrants[q].append(digit)
+                q += 1
+        self.quadrants = quadrants
+
+
     def print_stats(self):
         """Print statistics of placed numbers"""
-        print("Available display sizes:")
-        di = base.pipe.getDisplayInformation()
-        for index in range(di.getTotalDisplayModes()):
-            print(f"{di.getDisplayModeWidth(index)}x{di.getDisplayModeHeight(index)}")  
-        self.placed_numbers.sort(key=SORT)
+        if False:
+            print("Available display sizes:")
+            di = base.pipe.getDisplayInformation()
+            for index in range(di.getTotalDisplayModes()):
+                print(f"{di.getDisplayModeWidth(index)}x{di.getDisplayModeHeight(index)}")  
+        self.placed_numbers.sort(key=lambda item: (item['x'], item['y']))
         digit_counters = [0 for _ in range(10)]
         for item in self.placed_numbers:
             digit_counters[item['digit']] += 1
@@ -140,6 +191,14 @@ class ClockBase(ShowBase):
                 print(f"   digit {i}: {count:2d}, min={amounts_needed[i]}) *** MISSING: {amounts_needed[i] - count} ***")
             else:
                 print(f"   digit {i}: {count:2d}, min={amounts_needed[i]}")
+        self.distribute_digits_in_quadrants()
+        colors = [ (1,0,0,1), (0,1,0,1), (0,0,1,1), (1,1,0,1), (1,0,1,1), (0,1,1,1) ]
+        all = set([i for i in range(10)])
+        for i, quad in enumerate(self.quadrants):
+            for digit in quad:
+                digit['text_node'].setFg(colors[i])
+            digits = set([digit['digit'] for digit in quad])
+            print(f" Quadrant {i}: count = {len(digits):3d} | included = {str(digits):<30} | missing = {all - digits}")
         print("=======================================================================")
     
 

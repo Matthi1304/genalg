@@ -1,9 +1,7 @@
 # Clock class for displaying the current time
 # load beamer.json and place the digits accordingly
-    
-import json
+from base import ClockBase    
 from datetime import datetime
-import os
 import random
 import sys
 from panda3d.core import *
@@ -11,19 +9,10 @@ from direct.showbase.ShowBase import ShowBase
 from direct.task import Task
 from direct.gui.DirectGui import OnscreenText  
 
-class Clock(ShowBase):
+class Clock(ClockBase):
 
     def __init__(self, config_file="beamer.json", time=None):
-        ShowBase.__init__(self)
-
-        self.font = None
-        if os.path.exists("Epoch-BF6881cf42e6637.otf"):
-            self.font = loader.loadFont('Epoch-BF6881cf42e6637.otf')
-
-        di = base.pipe.getDisplayInformation()
-        print("Available display sizes:")
-        for index in range(di.getTotalDisplayModes()):
-            print(f"{di.getDisplayModeWidth(index)}x{di.getDisplayModeHeight(index)}")  
+        super().__init__(config_file=config_file, digit_color=(0.1, 0.1, 0.1, 1))
 
         self.black = (0, 0, 0, 1)
         self.white = (1, 1, 1, 1)
@@ -35,38 +24,15 @@ class Clock(ShowBase):
         self.nearly_black = (0.1, 0.1, 0.1, 1)
         self.default_color = self.nearly_black
         self.background_color = self.black
-        # Storage for placed numbers
-        self.placed_numbers = []  # [{digit, x, y, scale, text_node},..]
-        self.placed_numbers = self.load_configuration(config_file)
-        self.warned = [False for _ in range(10)]
 
-        # Disable default mouse camera control
-        self.disableMouse()
-        
-        # Setup orthographic camera for 2D
-        self.camera.setPos(0, -10, 0)
-        self.camera.lookAt(0, 0, 0)                
-        
-        # Setup background
-        self.setBackgroundColor(0, 0, 0, 1)
+        self.accept("c", self.change_colors)
+        self.accept("s", self.show_all_digits)
 
-        self.accept("f", self.toggle_fullscreen)
-        self.accept("t", self.toggle_fullscreen)
-        self.accept("space", self.toggle_fullscreen)
-        self.accept("c", self.change_color)
-        self.accept("i", self.show_all_digits)
-        self.accept("q", sys.exit)
-        self.accept("escape", sys.exit)
-
-        print("=======================================================================")
-        print("Clock initialized with configuration:", config_file)
-        print("Press 'f', 't' or 'space' to toggle fullscreen.")
-        print("Press 'c' to change highlight colors.")
-        print("Press 'i' to toggle visibility of all digits.")
-        print("Press 'q' or 'escape' to quit.")
+        self.add_help_text("Press 'c' to change highlight colors")
+        self.add_help_text("Press 's' to show/hide of digits")
         print("=======================================================================")
 
-        self.set_color(self.white, self.green, self.red)
+        self.set_colors(self.white, self.green, self.red)
 
         if time:
             print(f"Displaying static time: {time}")
@@ -74,50 +40,25 @@ class Clock(ShowBase):
         else: 
             self.taskMgr.add(self.display_time_task, "DisplayTimeTask")
 
-
-    def load_configuration(self, config_file):
-        try:
-            with open(config_file, "r") as f:
-                config = json.load(f)
-            # todo: find a better sorting order for digits
-            config.sort(key=lambda item: (item['x'], -item['y']))
-            # Load each number from the config into an OnscreenText
-            for item in config:
-                # Create text node for the number (green, fixed)
-                text_node = OnscreenText(
-                    text="O" if item['digit'] == 0 else str(item['digit']),
-                    pos=(item['x'], item['y']),
-                    scale=item['scale'],
-                    fg=(0.01, 0.01, 0.01, 1),  # black
-                    align=TextNode.ACenter,
-                    font=self.font,
-                    mayChange=True
-                )
-                item['text_node'] = text_node
-            return config
-        except FileNotFoundError:
-            print(f"Configuration file '{config_file}' not found.")
-        except json.JSONDecodeError:
-            print("Error decoding JSON.")
-        return []
     
-
-    def set_color(self, *colors):
+    def set_colors(self, *colors):
         if len(colors) == 1:
             self.highlight_color = [colors[0] for _ in range(6)]
         elif len(colors) == 3:
             self.highlight_color = [colors[0], colors[0], colors[1], colors[1], colors[2], colors[2]]
+        self.last_time = "hhmmss" # force clock update
 
 
-    def change_color(self):
+    def change_colors(self):
         if self.highlight_color[0] == self.white:
-            self.set_color(self.green, self.blue, self.red)
+            self.set_colors(self.green, self.blue, self.red)
         elif self.highlight_color[0] == self.green:
-            self.set_color(self.yellow, self.red, self.blue)
+            self.set_colors(self.yellow, self.red, self.blue)
         elif self.highlight_color[0] == self.yellow:
-            self.set_color(self.red, self.green, self.yellow)
+            self.set_colors(self.red, self.green, self.yellow)
         else:
-            self.set_color(self.white, self.green, self.red)
+            self.set_colors(self.white, self.green, self.red)
+        self.last_time = "hhmmss" # force clock update
 
     
     def show_all_digits(self):
@@ -127,14 +68,7 @@ class Clock(ShowBase):
             self.default_color = self.black
         else:
             self.default_color = self.white
-
-
-    def toggle_fullscreen(self):
-        """Toggle between fullscreen and windowed mode"""
-        fullscreen = self.win.getProperties().getFullscreen()
-        wp = WindowProperties()
-        wp.fullscreen = not fullscreen
-        base.win.request_properties(wp)
+        self.last_time = "hhmmss" # force clock update
 
 
     def display_time_task(self, task):
@@ -142,32 +76,46 @@ class Clock(ShowBase):
         return Task.cont
 
 
+    def _set_color_to_random_digit(self, source, digit, color):
+        candidates = list(filter(lambda item: item['digit'] == digit, source))
+        if not candidates:
+            print(f"Warning: no candidates found for digit {digit}, time {self.last_time}")
+        else:
+            digit = random.choice(candidates)
+            if digit is not None:
+                digit['text_node'].setFg(color)
+
+
     def display_time(self, t):
         if not hasattr(self, 'last_time'):
-            self.last_time = None
+            self.last_time = "hhmmss"
+            self.distribute_digits_in_quadrants()
         if len(t) == 5:
             t = '0' + t
         if t == self.last_time:
             return
-        i = 1 if t[0] == '0' else 0
-        lastDigits = []
-        for item in self.placed_numbers:
-            d = int(t[i]) if i < len(t) else -1
-            item['text_node'].setFg(self.default_color)            
-            if item['digit'] == d:
-                if (i == len(t) - 1):
-                    lastDigits.append(item)
-                else:
-                    item['text_node'].setFg(self.highlight_color[i])
-                    i += 1
-        if lastDigits:
-            if len(lastDigits) > 1:
-                random.shuffle(lastDigits)
-            lastDigits[0]['text_node'].setFg(self.highlight_color[-1])
-        elif i < len(t) and not self.warned[int(t[i])]:
-            print(f"Warning: Not all digits could be displayed, missing configuration for digit {t[i]} at {t[:-4]}:{t[-4:-2]}:{t[-2:]}")
-            self.warned[int(t[i])] = True
+        change_hours = t[2] != self.last_time[2] # every ten minutes
+        change_minutes = t[3] != self.last_time[3] # every minute
+        change_second_left = t[4] != self.last_time[4] # every ten seconds
+        change_second_right = t[5] != self.last_time[5] # every second
         self.last_time = t
+        if change_hours:
+            for digit in self.quadrants[0] + self.quadrants[1]:
+                digit['text_node'].setFg(self.default_color)
+            if t[0] == 0:
+                self._set_color_to_random_digit(self.quadrants[0] + self.quadrants[1], int(t[1]), self.highlight_color[0])
+            else:
+                self._set_color_to_random_digit(self.quadrants[0], int(t[0]), self.highlight_color[0])
+                self._set_color_to_random_digit(self.quadrants[1], int(t[1]), self.highlight_color[0])
+        if change_minutes:
+            for digit in self.quadrants[2] + self.quadrants[3]:
+                digit['text_node'].setFg(self.default_color)
+            self._set_color_to_random_digit(self.quadrants[2], int(t[2]), self.highlight_color[1])
+            self._set_color_to_random_digit(self.quadrants[3], int(t[3]), self.highlight_color[1])
+        for digit in self.quadrants[4] + self.quadrants[5]:
+            digit['text_node'].setFg(self.default_color)
+        self._set_color_to_random_digit(self.quadrants[4], int(t[4]), self.highlight_color[2])
+        self._set_color_to_random_digit(self.quadrants[5], int(t[5]), self.highlight_color[2])
 
 
 
