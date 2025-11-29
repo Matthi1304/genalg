@@ -45,7 +45,7 @@ class Clock(ClockBase):
         if len(colors) == 1:
             self.highlight_color = [colors[0] for _ in range(6)]
         elif len(colors) == 3:
-            self.highlight_color = [colors[0], colors[0], colors[1], colors[1], colors[2], colors[2]]
+            self.highlight_color = [colors[0], colors[1], colors[2]]
         self.last_time = "hhmmss" # force clock update
 
 
@@ -84,39 +84,53 @@ class Clock(ClockBase):
             digit = random.choice(candidates)
             if digit is not None:
                 digit['text_node'].setFg(color)
+        return digit
 
 
     def display_time(self, t):
-        if not hasattr(self, 'last_time'):
+        if not hasattr(self, 'quadrants'):
             self.last_time = "hhmmss"
             self.distribute_digits_in_quadrants()
+            self.hours = []
+            self.minutes = []
+            self.seconds = []
         if len(t) == 5:
             t = '0' + t
         if t == self.last_time:
             return
+        # clear seconds
+        for digit in self.seconds:
+            digit['text_node'].setFg(self.default_color)
+        self.seconds = []
         change_hours = t[2] != self.last_time[2] # every ten minutes
         change_minutes = t[3] != self.last_time[3] # every minute
-        change_second_left = t[4] != self.last_time[4] # every ten seconds
-        change_second_right = t[5] != self.last_time[5] # every second
         self.last_time = t
         if change_hours:
-            for digit in self.quadrants[0] + self.quadrants[1]:
+            for digit in self.hours:
                 digit['text_node'].setFg(self.default_color)
             if t[0] == 0:
-                self._set_color_to_random_digit(self.quadrants[0] + self.quadrants[1], int(t[1]), self.highlight_color[0])
+                self.hours.append(self._set_color_to_random_digit(self.quadrants[0] + self.quadrants[1], int(t[1]), self.highlight_color[0]))
             else:
-                self._set_color_to_random_digit(self.quadrants[0], int(t[0]), self.highlight_color[0])
-                self._set_color_to_random_digit(self.quadrants[1], int(t[1]), self.highlight_color[0])
+                self.hours.append(self._set_color_to_random_digit(self.quadrants[0], int(t[0]), self.highlight_color[0]))
+                self.hours.append(self._set_color_to_random_digit(self.quadrants[1], int(t[1]), self.highlight_color[0]))
         if change_minutes:
-            for digit in self.quadrants[2] + self.quadrants[3]:
+            for digit in self.minutes:
                 digit['text_node'].setFg(self.default_color)
-            self._set_color_to_random_digit(self.quadrants[2], int(t[2]), self.highlight_color[1])
-            self._set_color_to_random_digit(self.quadrants[3], int(t[3]), self.highlight_color[1])
-        for digit in self.quadrants[4] + self.quadrants[5]:
-            digit['text_node'].setFg(self.default_color)
-        self._set_color_to_random_digit(self.quadrants[4], int(t[4]), self.highlight_color[2])
-        self._set_color_to_random_digit(self.quadrants[5], int(t[5]), self.highlight_color[2])
-
+            self.minutes.append(self._set_color_to_random_digit(self.quadrants[2], int(t[2]), self.highlight_color[1]))
+            self.minutes.append(self._set_color_to_random_digit(self.quadrants[3], int(t[3]), self.highlight_color[1]))
+        # set seconds randomly
+        used_digits = self.hours + self.minutes
+        while None in used_digits:
+            used_digits.remove(None)
+        unused_digits = self.placed_numbers.copy()
+        for digit in used_digits:
+            if (digit in unused_digits):
+                unused_digits.remove(digit)
+        second_1 = self._set_color_to_random_digit(unused_digits, int(t[4]), self.highlight_color[2])
+        unused_digits.remove(second_1)
+        second_2 = self._set_color_to_random_digit(unused_digits, int(t[5]), self.highlight_color[2])
+        self.seconds.append(second_1)
+        self.seconds.append(second_2)
 
 
 if __name__ == "__main__":
