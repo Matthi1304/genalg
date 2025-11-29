@@ -32,6 +32,7 @@ class CalibrationApp(ClockBase):
 
         self.accept("shift-wheel_up", self.increase_number, [1])
         self.accept("shift-wheel_down", self.increase_number, [-1])
+        self.accept("mouse2", lambda: self.increase_number(1))
 
         self.accept("arrow_up", self.move, [0, 0.001])
         self.accept("arrow_up-repeat", self.move, [0, 0.001])
@@ -189,13 +190,13 @@ class CalibrationApp(ClockBase):
         return (self.spot.getX(), self.spot.getZ() - self.spot_size/2)
 
 
-    def numberAtMouse(self, tolerance=1):
+    def numberAtMouse(self, tolerance=.4):
+        tolerance = self.spot.getScale().getX() / 2
+        x_center = self.spot.getX()
+        y_center = self.spot.getZ() - tolerance
         item = None        
         for data in self.placed_numbers:
-            x = data['x']
-            y = data['y']
-            dist = ((x - self.spot.getX())**2 + 
-                   (y - self.spot.getZ())**2)**0.5
+            dist = ((data['x'] - x_center) ** 2 + (data['y'] - y_center) ** 2) ** 0.5
             if dist < tolerance:
                 item = data
                 tolerance = dist  # Update tolerance to closest
@@ -204,10 +205,10 @@ class CalibrationApp(ClockBase):
 
     def remove_number(self):
         """Remove number at current spot position"""
-        # Find if there's a fixed number near the spot position
         if (self.current_text):
             self.current_text.removeNode()
         else:
+            # Find if there's a fixed number near the spot position
             item = self.numberAtMouse()
             if item is not None:
                 self.placed_numbers.remove(item)
@@ -227,6 +228,8 @@ class CalibrationApp(ClockBase):
             self.spot_size = item['xscale'] / 2            
             self.spot.setPos(item['x'], 0, item['y'])
             self.spot.setScale(self.spot_size)
+        else:
+            self.place_number(1)
 
 
     def quit_and_save(self):
@@ -255,13 +258,20 @@ class CalibrationApp(ClockBase):
         # If current text exists, move it too
         if self.current_text:
             x, y = self.getNumberPosition()
-            self.current_text.setPos(x, y)        
+            self.current_text.setPos(x, y)
+        else:
+            if hasattr(self, 'text_node_at_mouse') and self.text_node_at_mouse:
+                self.text_node_at_mouse.setFg((0, 1, 0, 1))
+            item = self.numberAtMouse()
+            if item is not None:
+                item['text_node'].setFg((1, 0, 0, 1))
+                self.text_node_at_mouse = item['text_node']
         return Task.cont
     
 
     def resize(self, delta):
         """Resize current number"""
-        self.spot_size = max(0.05, self.spot_size + delta)
+        self.spot_size = max(0.04, self.spot_size + delta)
         self.spot.setScale(self.spot_size)
         if self.current_text:
             self.current_text.setScale(self.spot_size * 2)
