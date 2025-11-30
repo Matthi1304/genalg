@@ -65,6 +65,8 @@ class ClockBase(ShowBase):
         """Load configuration from JSON file if it exists"""
         print(f"Loading configuration from {config_file}")
         self.config_file = config_file
+        if hasattr(self, 'helpTexts'):
+            self.helpTexts[0].setText(f"Config: {config_file}")
         try:
             with open(self.config_file, 'r') as f:
                 config = json.load(f)
