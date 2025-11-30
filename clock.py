@@ -20,6 +20,7 @@ class Clock(ClockBase):
         self.green = (0, 1, 0, 1)
         self.blue = (0, 0, 1, 1)
         self.yellow = (1, 1, 0, 1)
+        self.cyan = (0, 1, 1, 1)
         self.nearly_white = (0.8, 0.8, 0.8, 1)
         self.nearly_black = (0.1, 0.1, 0.1, 1)
         self.default_color = self.nearly_black
@@ -56,21 +57,23 @@ class Clock(ClockBase):
     
     def set_colors(self, *colors):
         if len(colors) == 1:
-            self.highlight_color = [colors[0] for _ in range(6)]
+            self.highlight_colors = [colors[0] for _ in range(6)]
         elif len(colors) == 3:
-            self.highlight_color = [colors[0], colors[1], colors[2]]
+            self.highlight_colors = [colors[0], colors[1], colors[2]]
         self.force_clock_update()
 
 
     def change_colors(self):
-        if self.highlight_color[0] == self.white:
+        if self.highlight_colors[0] == self.white:
             self.set_colors(self.green, self.blue, self.red)
-        elif self.highlight_color[0] == self.green:
+        elif self.highlight_colors[0] == self.green:
             self.set_colors(self.yellow, self.red, self.blue)
-        elif self.highlight_color[0] == self.yellow:
+        elif self.highlight_colors[0] == self.yellow:
             self.set_colors(self.red, self.green, self.yellow)
         else:
             self.set_colors(self.white, self.green, self.red)
+        self._fix_highlight_colors()
+        self.force_clock_update()
 
     
     def show_all_digits(self):
@@ -84,7 +87,20 @@ class Clock(ClockBase):
         for digit in self.placed_numbers:
             digit['text_node'].setFg(self.default_color)
 
-        self.force_clock_update
+        self._fix_highlight_colors()
+        self.force_clock_update()
+
+
+    def _fix_highlight_colors(self):
+        unused_colors = list(
+            {self.white, self.green, self.red, self.blue, self.yellow, self.cyan}
+             - {self.default_color}
+             - set(self.highlight_colors)
+        )
+        random.shuffle(unused_colors)
+        for i, color in enumerate(self.highlight_colors):
+            if (color == self.default_color):
+                self.highlight_colors[i] = unused_colors.pop()
 
 
     def adjust_time(self, delta):
@@ -143,15 +159,15 @@ class Clock(ClockBase):
         if change_hours:
             self.reset(self.hours)
             if t[0] == '0':
-                self.hours.append(self._set_color_to_random_digit(self.quadrants[0] + self.quadrants[1], int(t[1]), self.highlight_color[0]))
+                self.hours.append(self._set_color_to_random_digit(self.quadrants[0] + self.quadrants[1], int(t[1]), self.highlight_colors[0]))
             else:
-                self.hours.append(self._set_color_to_random_digit(self.quadrants[0], int(t[0]), self.highlight_color[0]))
-                self.hours.append(self._set_color_to_random_digit(self.quadrants[1], int(t[1]), self.highlight_color[0]))
+                self.hours.append(self._set_color_to_random_digit(self.quadrants[0], int(t[0]), self.highlight_colors[0]))
+                self.hours.append(self._set_color_to_random_digit(self.quadrants[1], int(t[1]), self.highlight_colors[0]))
         if change_minutes:
             self.reset(self.minutes)
             self.minutes = []
-            self.minutes.append(self._set_color_to_random_digit(self.quadrants[2], int(t[2]), self.highlight_color[1]))
-            self.minutes.append(self._set_color_to_random_digit(self.quadrants[3], int(t[3]), self.highlight_color[1]))
+            self.minutes.append(self._set_color_to_random_digit(self.quadrants[2], int(t[2]), self.highlight_colors[1]))
+            self.minutes.append(self._set_color_to_random_digit(self.quadrants[3], int(t[3]), self.highlight_colors[1]))
         # set seconds randomly
         used_digits = self.hours + self.minutes
         while None in used_digits:
@@ -160,8 +176,8 @@ class Clock(ClockBase):
         for digit in used_digits:
             if (digit in unused_digits):
                 unused_digits.remove(digit)
-        self.seconds.append(self._set_color_to_random_digit(unused_digits, int(t[4]), self.highlight_color[2], remove_from_source=True))
-        self.seconds.append(self._set_color_to_random_digit(unused_digits, int(t[5]), self.highlight_color[2]))
+        self.seconds.append(self._set_color_to_random_digit(unused_digits, int(t[4]), self.highlight_colors[2], remove_from_source=True))
+        self.seconds.append(self._set_color_to_random_digit(unused_digits, int(t[5]), self.highlight_colors[2]))
 
 
 if __name__ == "__main__":
