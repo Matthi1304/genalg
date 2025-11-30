@@ -1,7 +1,7 @@
 # Clock class for displaying the current time
 # load beamer.json and place the digits accordingly
 from base import ClockBase    
-from datetime import datetime
+from datetime import datetime, timedelta
 import random
 import sys
 from panda3d.core import *
@@ -25,11 +25,24 @@ class Clock(ClockBase):
         self.default_color = self.nearly_black
         self.background_color = self.black
 
+        self.time_delta = 0  # time offset in seconds
+
         self.accept("c", self.change_colors)
         self.accept("s", self.show_all_digits)
 
+        self.accept("arrow_right", self.adjust_time, [60])
+        self.accept("arrow_right-repeat", self.adjust_time, [60])
+        self.accept("arrow_left", self.adjust_time, [-60])
+        self.accept("arrow_left-repeat", self.adjust_time, [-60])
+        self.accept("r", self.reset_time)
+
+        self.accept("q", sys.exit)
+
+
         self.add_help_text("Press 'c' to change highlight colors")
         self.add_help_text("Press 's' to show/hide of digits")
+        self.add_help_text("Use left or right arrow to change time")
+        self.add_help_text("Press 'r' to reset time")
         print("=======================================================================")
 
         self.set_colors(self.white, self.green, self.red)
@@ -46,7 +59,7 @@ class Clock(ClockBase):
             self.highlight_color = [colors[0] for _ in range(6)]
         elif len(colors) == 3:
             self.highlight_color = [colors[0], colors[1], colors[2]]
-        self.last_time = "hhmmss" # force clock update
+        self.force_clock_update()
 
 
     def change_colors(self):
@@ -58,7 +71,6 @@ class Clock(ClockBase):
             self.set_colors(self.red, self.green, self.yellow)
         else:
             self.set_colors(self.white, self.green, self.red)
-        self.last_time = "hhmmss" # force clock update
 
     
     def show_all_digits(self):
@@ -68,28 +80,53 @@ class Clock(ClockBase):
             self.default_color = self.black
         else:
             self.default_color = self.white
-        self.last_time = "hhmmss" # force clock update
 
+        for digit in self.placed_numbers:
+            digit['text_node'].setFg(self.default_color)
+
+        self.force_clock_update
+
+
+    def adjust_time(self, delta):
+        self.time_delta += delta
+    
+
+    def reset_time(self):
+        self.time_delta = 0
+
+
+    def force_clock_update(self):
+        self.last_time = "999999"
+            
 
     def display_time_task(self, task):
-        self.display_time(datetime.now().strftime("%H%M%S"))
+        self.display_time((datetime.now() + timedelta(seconds=self.time_delta)).strftime("%H%M%S"))
         return Task.cont
 
 
-    def _set_color_to_random_digit(self, source, digit, color):
+    def _set_color_to_random_digit(self, source, digit, color, remove_from_source=False):
         candidates = list(filter(lambda item: item['digit'] == digit, source))
         if not candidates:
             print(f"Warning: no candidates found for digit {digit}, time {self.last_time}")
+            return None
         else:
             digit = random.choice(candidates)
             if digit is not None:
                 digit['text_node'].setFg(color)
-        return digit
+                if remove_from_source:
+                    source.remove(digit)
+            return digit
+
+
+    def reset(self, digits):
+        for digit in digits:
+            digit['text_node'].setFg(self.default_color) if digit is not None else None
+        digits.clear()
 
 
     def display_time(self, t):
         if not hasattr(self, 'quadrants'):
-            self.last_time = "hhmmss"
+            self.last_time = "245959"
             self.distribute_digits_in_quadrants()
             self.hours = []
             self.minutes = []
@@ -99,23 +136,20 @@ class Clock(ClockBase):
         if t == self.last_time:
             return
         # clear seconds
-        for digit in self.seconds:
-            digit['text_node'].setFg(self.default_color)
-        self.seconds = []
+        self.reset(self.seconds)
         change_hours = t[2] != self.last_time[2] # every ten minutes
         change_minutes = t[3] != self.last_time[3] # every minute
         self.last_time = t
         if change_hours:
-            for digit in self.hours:
-                digit['text_node'].setFg(self.default_color)
-            if t[0] == 0:
+            self.reset(self.hours)
+            if t[0] == '0':
                 self.hours.append(self._set_color_to_random_digit(self.quadrants[0] + self.quadrants[1], int(t[1]), self.highlight_color[0]))
             else:
                 self.hours.append(self._set_color_to_random_digit(self.quadrants[0], int(t[0]), self.highlight_color[0]))
                 self.hours.append(self._set_color_to_random_digit(self.quadrants[1], int(t[1]), self.highlight_color[0]))
         if change_minutes:
-            for digit in self.minutes:
-                digit['text_node'].setFg(self.default_color)
+            self.reset(self.minutes)
+            self.minutes = []
             self.minutes.append(self._set_color_to_random_digit(self.quadrants[2], int(t[2]), self.highlight_color[1]))
             self.minutes.append(self._set_color_to_random_digit(self.quadrants[3], int(t[3]), self.highlight_color[1]))
         # set seconds randomly
@@ -126,11 +160,8 @@ class Clock(ClockBase):
         for digit in used_digits:
             if (digit in unused_digits):
                 unused_digits.remove(digit)
-        second_1 = self._set_color_to_random_digit(unused_digits, int(t[4]), self.highlight_color[2])
-        unused_digits.remove(second_1)
-        second_2 = self._set_color_to_random_digit(unused_digits, int(t[5]), self.highlight_color[2])
-        self.seconds.append(second_1)
-        self.seconds.append(second_2)
+        self.seconds.append(self._set_color_to_random_digit(unused_digits, int(t[4]), self.highlight_color[2], remove_from_source=True))
+        self.seconds.append(self._set_color_to_random_digit(unused_digits, int(t[5]), self.highlight_color[2]))
 
 
 if __name__ == "__main__":
