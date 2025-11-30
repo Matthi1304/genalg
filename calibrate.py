@@ -182,17 +182,11 @@ class CalibrationApp(ClockBase):
         return (self.spot.getX(), self.spot.getZ() - self.spot_size/2)
 
 
-    def numberAtMouse(self, tolerance=.4):
+    def numberAtMouse(self):
         tolerance = self.spot.getScale().getX() / 2
         x_center = self.spot.getX()
         y_center = self.spot.getZ() - tolerance
-        item = None        
-        for digit in self.placed_numbers:
-            dist = ((digit['x'] - x_center) ** 2 + (digit['y'] - y_center) ** 2) ** 0.5
-            if dist < tolerance:
-                item = digit
-                tolerance = dist  # Update tolerance to closest
-        return item
+        return self.get_nearest_digit(x_center, y_center, tolerance=tolerance)
 
 
     def remove_number(self):

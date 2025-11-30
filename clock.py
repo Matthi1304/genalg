@@ -11,7 +11,7 @@ from direct.gui.DirectGui import OnscreenText
 
 class Clock(ClockBase):
 
-    def __init__(self, config_file="beamer.json", time=None):
+    def __init__(self, config_file="beamer.json"):
         super().__init__(config_file=config_file, digit_color=(0.1, 0.1, 0.1, 1))
 
         self.black = (0, 0, 0, 1)
@@ -29,13 +29,16 @@ class Clock(ClockBase):
         self.time_delta = 0  # time offset in seconds
 
         self.accept("c", self.change_colors)
-        self.accept("s", self.show_all_digits)
+        self.accept("s", self.color_all_digits)
 
         self.accept("arrow_right", self.adjust_time, [60])
         self.accept("arrow_right-repeat", self.adjust_time, [60])
         self.accept("arrow_left", self.adjust_time, [-60])
         self.accept("arrow_left-repeat", self.adjust_time, [-60])
         self.accept("r", self.reset_time)
+
+        self.animation = None
+        self.accept("a", self.toggle_animation)
 
         self.accept("q", sys.exit)
 
@@ -44,15 +47,17 @@ class Clock(ClockBase):
         self.add_help_text("Press 's' to show/hide of digits")
         self.add_help_text("Use left or right arrow to change time")
         self.add_help_text("Press 'r' to reset time")
+        self.add_help_text("Press 'a' to start or stop an animation")
         print("=======================================================================")
 
         self.set_colors(self.white, self.green, self.red)
 
-        if time:
-            print(f"Displaying static time: {time}")
-            self.display_time(time.replace(':',''))
-        else: 
-            self.taskMgr.add(self.display_time_task, "DisplayTimeTask")
+        self.last_time = "245959"
+        self.distribute_digits_in_quadrants()
+        self.hours = []
+        self.minutes = []
+        self.seconds = []
+        self.taskMgr.add(self.display_time_task, "DisplayTimeTask")
 
     
     def set_colors(self, *colors):
@@ -75,9 +80,14 @@ class Clock(ClockBase):
         self._fix_highlight_colors()
         self.force_clock_update()
 
+        self._fix_highlight_colors()
+        self.force_clock_update()
+
     
-    def show_all_digits(self):
-        if self.default_color == self.white:
+    def color_all_digits(self, color=None):
+        if color:
+            self.default_color = color
+        elif self.default_color == self.white:
             self.default_color = self.nearly_black
         elif self.default_color == self.nearly_black:
             self.default_color = self.black
@@ -116,8 +126,30 @@ class Clock(ClockBase):
             
 
     def display_time_task(self, task):
+        if self.animation is not None:
+            if self.animation.active:
+                self.animation.update()
+                if self.animation.exclusive:
+                    return Task.cont
+            else:
+                self.animation = None
         self.display_time((datetime.now() + timedelta(seconds=self.time_delta)).strftime("%H%M%S"))
         return Task.cont
+
+
+    def toggle_animation(self):
+        if self.animation is not None and self.animation.active:
+            print("Stopping animation")
+            self.animation.stop()
+            self.animation = None
+            self.force_clock_update()
+        else:
+            print("Starting animation")
+            from animation import WanderingDigits
+            self.animation = WanderingDigits(self)
+            self.animation.start()
+            if self.animation.exclusive:
+                self.color_all_digits(color=self.black)
 
 
     def _set_color_to_random_digit(self, source, digit, color, remove_from_source=False):
@@ -134,37 +166,31 @@ class Clock(ClockBase):
             return digit
 
 
-    def reset(self, digits):
+    def _reset(self, digits):
         for digit in digits:
             digit['text_node'].setFg(self.default_color) if digit is not None else None
         digits.clear()
 
 
     def display_time(self, t):
-        if not hasattr(self, 'quadrants'):
-            self.last_time = "245959"
-            self.distribute_digits_in_quadrants()
-            self.hours = []
-            self.minutes = []
-            self.seconds = []
         if len(t) == 5:
             t = '0' + t
         if t == self.last_time:
             return
         # clear seconds
-        self.reset(self.seconds)
+        self._reset(self.seconds)
         change_hours = t[2] != self.last_time[2] # every ten minutes
         change_minutes = t[3] != self.last_time[3] # every minute
         self.last_time = t
         if change_hours:
-            self.reset(self.hours)
+            self._reset(self.hours)
             if t[0] == '0':
                 self.hours.append(self._set_color_to_random_digit(self.quadrants[0] + self.quadrants[1], int(t[1]), self.highlight_colors[0]))
             else:
                 self.hours.append(self._set_color_to_random_digit(self.quadrants[0], int(t[0]), self.highlight_colors[0]))
                 self.hours.append(self._set_color_to_random_digit(self.quadrants[1], int(t[1]), self.highlight_colors[0]))
         if change_minutes:
-            self.reset(self.minutes)
+            self._reset(self.minutes)
             self.minutes = []
             self.minutes.append(self._set_color_to_random_digit(self.quadrants[2], int(t[2]), self.highlight_colors[1]))
             self.minutes.append(self._set_color_to_random_digit(self.quadrants[3], int(t[3]), self.highlight_colors[1]))
@@ -183,9 +209,7 @@ class Clock(ClockBase):
 if __name__ == "__main__":
     loadPrcFile("clock.prc")
     config_file = "beamer.json"
-    if (len(sys.argv) > 1 and sys.argv[1] != "-t"):
+    if len(sys.argv) > 1:
         config_file = sys.argv.pop(1)
-    time = sys.argv[2] if (len(sys.argv) > 2 and sys.argv[1] == "-t") else None
-    app = Clock(config_file=config_file, time=time)
+    app = Clock(config_file=config_file)
     app.run()
-

@@ -150,14 +150,22 @@ class ClockBase(ShowBase):
         base.win.request_properties(wp)
 
 
-    def distribute_digits_in_quadrants(self):
+    def get_display_area(self):
+        """Get the display area covered by placed numbers: (min_x, min_y, max_x, max_y)"""
         if not self.placed_numbers:
-            print("No placed numbers to distribute in quadrants")
-            return
+            return (0, 0, 0, 0)
         min_x = min(item['x'] for item in self.placed_numbers)
         max_x = max(item['x'] for item in self.placed_numbers)
         min_y = min(item['y'] for item in self.placed_numbers)
         max_y = max(item['y'] for item in self.placed_numbers)
+        return (min_x, min_y, max_x, max_y)
+    
+
+    def distribute_digits_in_quadrants(self):
+        if not self.placed_numbers:
+            print("No placed numbers to distribute in quadrants")
+            return
+        min_x, min_y, max_x, max_y = self.get_display_area()
         print(f"Display area X: {min_x} - {max_x}, Y: {min_y} - {max_y}")
         quadrants = [[] for _ in range(4)]
         mid_x = (min_x + max_x) / 2
@@ -215,7 +223,18 @@ class ClockBase(ShowBase):
         print("=======================================================================")
     
 
-
-
-
-
+    def get_nearest_digit(self, x, y, tolerance=float('inf'), skip = None):
+        """Get the nearest digit to the given (x, y) position"""
+        if not self.placed_numbers:
+            return None
+        digit = None
+        for item in self.placed_numbers:
+            if skip and skip(item):
+                continue
+            dx = item['x'] - x
+            dy = item['y'] - y
+            dist = ((dx * dx) + (dy * dy)) ** 0.5
+            if dist < tolerance:
+                digit = item
+                tolerance = dist
+        return digit
