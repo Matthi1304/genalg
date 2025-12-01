@@ -13,7 +13,7 @@ from direct.gui.DirectGui import OnscreenText
 class Clock(ClockBase):
 
     def __init__(self, config_file="beamer.json"):
-        super().__init__(config_file=config_file, digit_color=(0.1, 0.1, 0.1, 1))
+        super().__init__(config_file=config_file, digit_color=(0, 0, 0, 1))
 
         self.black = (0, 0, 0, 1)
         self.white = (1, 1, 1, 1)
