@@ -1,4 +1,5 @@
 from math import atan2, pi
+import os
 from random import choice, randint
 
 
@@ -8,10 +9,25 @@ BLACK = (0, 0, 0, 1)
 
 class Animation:
 
-    def __init__(self, clock, exclusive=True):
+    def __init__(self, clock, exclusive=True, sound_file=None):
         self.clock = clock
         self.active = False
         self.exclusive = exclusive
+        if sound_file is not None:
+            self.sound_file = sound_file
+            if os.path.exists(self.sound_file):
+                self.sound_file = sound_file
+            else:
+                self.sound_file = None
+        else:
+            prefix = "animation_" + self.__class__.__name__.lower() + "."
+            for filename in os.listdir("audio"):
+                if filename.startswith(prefix):
+                    self.sound_file = os.path.join("audio", filename)
+                    break
+            if not sound_file:
+                self.sound_file = "audio/musicbox.ogg"
+                print(f"No sound file found for animation 'audio/{self.__class__.__name__.lower()}.*', using default '{self.sound_file}'.")
 
     
     def start(self):
@@ -21,6 +37,10 @@ class Animation:
         """
         self.active = True
         self.counter = 0
+        if self.sound_file:
+            self.sound = self.clock.loader.loadSfx(self.sound_file)
+            self.sound.setVolume(1.0)
+            self.sound.play()            
 
 
     def stop(self):
@@ -80,11 +100,13 @@ class Animation:
                 has_faders = True
             except StopIteration:
                 digit.pop(FADER, None)
+        if self.sound:
+            return self.sound.status() == self.sound.PLAYING or has_faders
         return has_faders
     
 
     def has_faders(self):
-        return any(FADER in d for d in self.clock.placed_numbers)
+        return (self.sound and self.sound.status() == self.sound.PLAYING) or any(FADER in d for d in self.clock.placed_numbers)
     
 
 # Helper functions
