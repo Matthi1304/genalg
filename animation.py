@@ -13,21 +13,20 @@ class Animation:
         self.clock = clock
         self.active = False
         self.exclusive = exclusive
+        self.sound_file = sound_file
         if sound_file is not None:
-            self.sound_file = sound_file
             if os.path.exists(self.sound_file):
                 self.sound_file = sound_file
             else:
                 self.sound_file = None
         else:
-            prefix = "animation_" + self.__class__.__name__.lower() + "."
+            prefix = self.__class__.__name__.lower() + "."
             for filename in os.listdir("audio"):
                 if filename.startswith(prefix):
                     self.sound_file = os.path.join("audio", filename)
                     break
-            if not sound_file:
-                self.sound_file = "audio/musicbox.ogg"
-                print(f"No sound file found for animation 'audio/{self.__class__.__name__.lower()}.*', using default '{self.sound_file}'.")
+            if not self.sound_file:
+                print(f"No sound file for animation found, should match 'audio/{self.__class__.__name__.lower()}.*'.")
 
     
     def start(self):
@@ -37,10 +36,14 @@ class Animation:
         """
         self.active = True
         self.counter = 0
+        self.sound_fader = None
+        self.sound = None
         if self.sound_file:
             self.sound = self.clock.loader.loadSfx(self.sound_file)
             self.sound.setVolume(1.0)
-            self.sound.play()            
+            self.sound.play()
+            self.sound_fader = sound_fader(self.sound)
+            
 
 
     def stop(self):
@@ -60,6 +63,10 @@ class Animation:
         for digit in filter(lambda d: FADER in d, self.clock.placed_numbers):
             digit.pop(FADER, None)
         self.clock.color_all_digits(color=self.clock.default_color)
+        if self.sound:
+            self.sound.stop()
+            self.sound = None
+            self.sound_fader = None
 
 
     def animate(self):
@@ -101,17 +108,18 @@ class Animation:
                 has_faders = True
             except StopIteration:
                 digit.pop(FADER, None)
-        if self.sound and self.sound.status() == self.sound.PLAYING and not has_faders:
-            self.sound.setVolume(max(0.0, self.sound.getVolume() - 0.05))
-            if self.sound.getVolume() == 0.0:
+        if not has_faders and self.sound_fader:
+            try:
+                return next(self.sound_fader)
+            except StopIteration:
                 self.sound.stop()
-                return False
-            return True
+                self.sound = None
+                self.sound_fader = None
         return has_faders
     
 
     def has_faders(self):
-        return (self.sound and self.sound.status() == self.sound.PLAYING) or any(FADER in d for d in self.clock.placed_numbers)
+        return self.sound_fader or any(FADER in d for d in self.clock.placed_numbers)
     
 
 # Helper functions
@@ -121,24 +129,44 @@ def distance_from_center(digit):
     return (digit['x'] ** 2 + digit['y'] ** 2) ** 0.5
 
 
-def fade_color_to(start_color, end_color, step):
-    """Generate colors fading from start_color to end_color in given steps"""
-    for i in range(step + 1):
-        ratio = i / step
-        r = start_color[0] + (end_color[0] - start_color[0]) * ratio
-        g = start_color[1] + (end_color[1] - start_color[1]) * ratio
-        b = start_color[2] + (end_color[2] - start_color[2]) * ratio
-        yield (r, g, b, 1)
+def register_color_fader(digit, start_color, end_color, step, both_ways=True):
+
+    def fade_to(start_color, end_color, step):
+        for i in range(step + 1):
+            ratio = i / step
+            r = start_color[0] + (end_color[0] - start_color[0]) * ratio
+            g = start_color[1] + (end_color[1] - start_color[1]) * ratio
+            b = start_color[2] + (end_color[2] - start_color[2]) * ratio
+            yield (r, g, b, 1)
+
+    def fade_to_and_back(start_color, end_color, step):
+        """Generate colors fading from start_color to end_color and back again in given steps"""
+        for color in fade_to(start_color, end_color, step // 2 - 1):
+            yield color
+        yield end_color
+        yield end_color
+        for color in fade_to(end_color, start_color, step // 2 - 1):
+            yield color
+
+    def update_and_get_next_color(digit, fader):
+        for color in fader:
+            digit['text_node'].setFg(color)
+            yield color
+
+    generator = fade_to_and_back(start_color, end_color, step) if both_ways else fade_to(start_color, end_color, step)
+    digit[FADER] = generator
+    
 
 
-def fade_color_to_and_back_again(start_color, end_color, step):
-    """Generate colors fading from start_color to end_color and back again in given steps"""
-    for color in fade_color_to(start_color, end_color, step // 2 - 1):
-        yield color
-    yield end_color
-    yield end_color
-    for color in fade_color_to(end_color, start_color, step // 2 - 1):
-        yield color
+def sound_fader(sound):
+    """Generator that fades out the sound volume"""
+    current_volume = sound.getVolume()
+    while current_volume > 0.0 and sound.status() == sound.PLAYING:
+        current_volume -= 0.002 
+        sound.setVolume(max(0.0, current_volume))
+        yield True
+    sound.stop()
+    yield False
 
 
 # Animations
@@ -168,7 +196,7 @@ class FillPie(Animation):
         for digit in filter(lambda d: not FADER in d, self.clock.placed_numbers):
             angle = (180.0 / pi) * -1.0 * atan2(digit['y'], digit['x']) + 180.0
             if self.current_angle <= angle < angle_limit:
-                digit[FADER] = fade_color_to_and_back_again(BLACK, self.target_color, 100)
+                register_color_fader(digit, BLACK, self.target_color, 100)
         self.current_angle += self.step * 360.0
         if self.current_angle >= 360.0:
             return self.fade()
@@ -211,7 +239,7 @@ class Blob(Animation):
                 distance = distance_from_center(digit)
                 interval = (self.current_radius, self.current_radius + self.radius_step)
                 if (min(interval) <= distance < max(interval)):
-                    digit[FADER] = fade_color_to_and_back_again(BLACK, self.target_color, self.fade_cycle)
+                    register_color_fader(digit, BLACK, self.target_color, self.fade_cycle)
             self.current_radius += self.radius_step
         return self.fade()
     
@@ -255,7 +283,7 @@ class WanderingDigit(Animation):
                 skip=lambda item: (self.number <= 9 and item['digit'] != self.number) or item in self.visited
             )
             if next is not None:
-                next[FADER] = fade_color_to_and_back_again(BLACK, self.target_color, self.step * 2)
+                register_color_fader(next, BLACK, self.target_color, self.step * 2)
                 self.visited.append(next)
                 self.pos = (next['x'], next['y'])
         return self.fade()
@@ -329,7 +357,7 @@ class Countdown(Animation):
             for digit in self.clock.placed_numbers:
                 if digit['digit'] == self.current_number:
                     if self.fade_animation:
-                        digit[FADER] = fade_color_to_and_back_again(BLACK, self.target_color, int(self.step * 1.4))
+                        register_color_fader(digit, BLACK, self.target_color, int(self.step * 1.4))
                     else:
                         digit['text_node'].setFg(self.target_color)
                 elif not self.fade_animation and self.hide_counted_digits and digit['digit'] > self.current_number:
@@ -339,7 +367,7 @@ class Countdown(Animation):
             # if all colors are shown, then fade them out at the end
             for digit in self.clock.placed_numbers:
                 if digit['digit'] >= 0:
-                    digit[FADER] = fade_color_to(digit['text_node'].fg, self.clock.default_color, int(self.step * 1.4))
+                    register_color_fader(digit, digit['text_node'].fg, self.clock.default_color, int(self.step * 1.4))
             self.fade_animation = True
         if self.fade_animation:
             return self.fade()                    
