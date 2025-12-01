@@ -1,6 +1,7 @@
 # Clock class for displaying the current time
 # load beamer.json and place the digits accordingly
 from base import ClockBase    
+import animation
 from datetime import datetime, timedelta
 import random
 import sys
@@ -38,6 +39,11 @@ class Clock(ClockBase):
         self.accept("r", self.reset_time)
 
         self.animation = None
+        self.animations = [
+            animation.Countdown, 
+            animation.WanderingDigit, 
+            animation.Sweeper
+        ]
         self.accept("a", self.toggle_animation)
 
         self.accept("q", sys.exit)
@@ -139,14 +145,13 @@ class Clock(ClockBase):
 
     def toggle_animation(self):
         if self.animation is not None and self.animation.active:
-            print("Stopping animation")
             self.animation.stop()
             self.animation = None
             self.force_clock_update()
         else:
-            print("Starting animation")
-            from animation import WanderingDigits
-            self.animation = WanderingDigits(self)
+            clazz = self.animations.pop(0)
+            self.animations.append(clazz)
+            self.animation = clazz(self)
             self.animation.start()
             if self.animation.exclusive:
                 self.color_all_digits(color=self.black)

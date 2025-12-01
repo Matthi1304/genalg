@@ -1,4 +1,7 @@
-from random import choice
+from random import choice, randint
+
+
+BLACK = (0, 0, 0, 1)
 
 class Animation:
 
@@ -41,20 +44,47 @@ class Animation:
         return self.active
     
 
-class WanderingDigits(Animation):
+
+# Helper functions for fading colors
+
+def fade_color_to(start_color, end_color, step):
+    """Generate colors fading from start_color to end_color in given steps"""
+    for i in range(step + 1):
+        ratio = i / step
+        r = start_color[0] + (end_color[0] - start_color[0]) * ratio
+        g = start_color[1] + (end_color[1] - start_color[1]) * ratio
+        b = start_color[2] + (end_color[2] - start_color[2]) * ratio
+        yield (r, g, b, 1)
+
+
+def fade_color_to_and_back_again(start_color, end_color, step):
+    """Generate colors fading from start_color to end_color and back again in given steps"""
+    for color in fade_color_to(start_color, end_color, step // 2):
+        yield color
+    for color in fade_color_to(end_color, start_color, step // 2):
+        yield color
+
+
+# Example animations
+
+
+class WanderingDigit(Animation):
     """
     An example animation that makes digits wander around randomly.
     """
 
     def __init__(self, clock, number=None, color=None):
         super().__init__(clock, exclusive=True)
-        self.number = number if number is not None else choice(range(10))
+        self.number = number if number is not None else randint(0, 15)
         if color is None:
-            self.target_color = choice([clock.red, clock.green, clock.blue, clock.yellow])
+            self.target_color = choice([clock.red, clock.green, clock.blue, clock.yellow, clock.cyan])
         else:
             self.target_color = color
-        self.step = 0.005
-        self.update_interval = int(1 / (2 * self.step))
+        self.step = 200 # number of update steps for a full fade in or fadeout
+        if self.number > 9:
+            self.update_interval = self.step // 20
+        else:
+            self.update_interval = self.step // 4
     
 
     def start(self):
@@ -63,49 +93,27 @@ class WanderingDigits(Animation):
         self.counter = 0
         x1, y1, x2, y2 = self.clock.get_display_area()
         self.pos = (choice((x1, x2)), choice((y1, y2)))
-        self.to_fade_in = []
-        self.to_fade_out = []
         self.visited = []
+        self.fading_counter = 0
     
 
     def cleanup(self):
         print(f"Stopped WanderingDigits animation for digit {self.number} and color {self.target_color[0:3]}")
-        for digit in self.to_fade_in + self.to_fade_out:
+        for digit in self.visited:
             digit['text_node'].setFg(self.clock.default_color)
-        self.to_fade_in = []
-        self.to_fade_out = []
+            digit.pop('fader', None)
         self.visited = []
         super().cleanup()
     
 
-    def fade_in(self):
-        tr, tg, tb, _ = self.target_color
-        for digit in self.to_fade_in.copy():
-            r, g, b, _ = digit['text_node'].fg
-            if (r < tr):
-                r = min(r + self.step, tr)
-            if (g < tg):
-                g = min(g + self.step, tg)
-            if (b < tb):
-                b = min(b + self.step, tb)
-            digit['text_node'].setFg((r, g, b, 1))
-            if (r == tr) and (g == tg) and (b == tb):
-                self.to_fade_in.remove(digit)
-                self.to_fade_out.append(digit)
-
-
-    def fade_out(self):
-        for digit in self.to_fade_out.copy():
-            r, g, b, _ = digit['text_node'].fg
-            if (r > 0):
-                r = max(r - self.step, 0)
-            if (g > 0):
-                g = max(g - self.step, 0)
-            if (b > 0):
-                b = max(b - self.step, 0)
-            if (r == 0) and (g == 0) and (b == 0):
-                self.to_fade_out.remove(digit)
-            digit['text_node'].setFg((r, g, b, 1))
+    def fade(self):
+        for digit in filter(lambda d: 'fader' in d, self.visited):
+            try:
+                next_color = next(digit['fader'])
+                digit['text_node'].setFg(next_color)
+            except StopIteration:
+                digit.pop('fader', None)
+                self.fading_counter -= 1
 
 
     def update(self):
@@ -115,16 +123,104 @@ class WanderingDigits(Animation):
             next = self.clock.get_nearest_digit(
                 self.pos[0],
                 self.pos[1],
-                skip=lambda item:  item['digit'] != self.number or item in self.visited
+                skip=lambda item: (self.number <= 9 and item['digit'] != self.number) or item in self.visited
             )
             if next is not None:
-                next['text_node'].setFg((0, 0, 0, 1))  # start with black
-                self.to_fade_in.append(next)
+                next['fader'] = fade_color_to_and_back_again(BLACK, self.target_color, self.step * 2)
                 self.visited.append(next)
                 self.pos = (next['x'], next['y'])
-        self.fade_in()
-        self.fade_out()
+                self.fading_counter += 1
+        self.fade()
         self.counter += 1
-        if (not self.to_fade_in) and (not self.to_fade_out):
+        if self.fading_counter == 0:
             self.stop()
+        return self.active
+
+
+class Sweeper(Animation):
+    """
+    An example animation that sweeps across the display area, coloring digits. No fading.
+    """
+
+    def __init__(self, clock, color=None):
+        super().__init__(clock, exclusive=True)
+        if color is None:
+            self.target_color = choice([clock.red, clock.green, clock.blue, clock.yellow, clock.cyan, clock.white])
+        else:
+            self.target_color = color
+        self.step = 0.01
+        self.width = 0.4  # width of the sweeper as fraction of display area
+        self.position = -1.0  # Start from the left outside the display area
+        self.mode = 'left-to-right'
+    
+
+    def start(self):
+        super().start()
+        self.x_start, _, self.x_end, _ = self.clock.get_display_area()
+        self.width = (self.x_end - self.x_start) * self.width
+    
+
+    def cleanup(self):
+        self.clock.color_all_digits(color=self.clock.default_color)
+        super().cleanup()
+        
+
+    def update(self):
+        if not self.active:
+            return False
+        sweep_x = self.x_start + (self.x_end - self.x_start) * ((self.position + 1.0) / 2.0)
+        for digit in self.clock.placed_numbers:
+            if digit['x'] <= sweep_x - self.width:
+                digit['text_node'].setFg(self.clock.default_color)
+            elif digit['x'] <= sweep_x:
+                digit['text_node'].setFg(self.target_color)
+        self.position += self.step
+        if self.position > 1.0 + self.width:
+            self.stop()
+        return self.active
+
+
+class Countdown(Animation):
+    """
+    An example animation that counts down from a 9 to 0
+    """
+
+    def __init__(self, clock, start_number=9, color=None):
+        super().__init__(clock, exclusive=True)
+        self.current_number = start_number
+        if color is None:
+            self.target_color = choice([clock.red, clock.green, clock.blue, clock.yellow, clock.cyan, clock.white])
+        else:
+            self.target_color = color
+        self.hide_too = choice([True, True, False])
+        if self.hide_too:
+            self.step = 90
+        else:
+            self.step = randint(40,70)
+    
+
+    def start(self):
+        super().start()
+        self.counter = 0
+    
+
+    def cleanup(self):
+        self.clock.color_all_digits(color=self.clock.default_color)
+        super().cleanup()
+    
+
+    def update(self):
+        if not self.active:
+            return False
+        if (self.counter % self.step) == 0:
+            if self.current_number < 0:
+                self.stop()
+                return False
+            for digit in self.clock.placed_numbers:
+                if digit['digit'] == self.current_number:
+                    digit['text_node'].setFg(self.target_color)
+                elif self.hide_too and digit['digit'] > self.current_number:
+                    digit['text_node'].setFg(self.clock.default_color)
+            self.current_number -= 1
+        self.counter += 1
         return self.active
