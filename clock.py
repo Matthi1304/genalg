@@ -156,7 +156,7 @@ class Clock(ClockBase):
             index = t.second // 2
             if index < h and self.gong_sounds[index].status() != self.gong_sounds[index].PLAYING:
                 self.gong_sounds[index].play()
-        if t.second != self.last_tic:
+        if t.second != self.last_tic and t.microsecond < 100000:
             self.tic_sound.play()
             self.last_tic = t.second
 
