@@ -90,6 +90,7 @@ class Animation:
     def fade(self):
         """
         Takes care of fading for all active fading digits.
+        If a sound is associated with the animation, it also fades out the sound when no other qfaders are left.
         Returns True if there are still faders active, False otherwise.
         """
         has_faders = False
@@ -100,8 +101,12 @@ class Animation:
                 has_faders = True
             except StopIteration:
                 digit.pop(FADER, None)
-        if self.sound:
-            return self.sound.status() == self.sound.PLAYING or has_faders
+        if self.sound and self.sound.status() == self.sound.PLAYING and not has_faders:
+            self.sound.setVolume(max(0.0, self.sound.getVolume() - 0.05))
+            if self.sound.getVolume() == 0.0:
+                self.sound.stop()
+                return False
+            return True
         return has_faders
     
 
