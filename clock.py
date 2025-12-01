@@ -24,7 +24,7 @@ class Clock(ClockBase):
         self.cyan = (0, 1, 1, 1)
         self.nearly_white = (0.8, 0.8, 0.8, 1)
         self.nearly_black = (0.1, 0.1, 0.1, 1)
-        self.default_color = self.nearly_black
+        self.default_color = self.black
         self.background_color = self.black
 
         self.time_delta = 0  # time offset in seconds
