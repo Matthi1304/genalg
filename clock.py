@@ -40,6 +40,8 @@ class Clock(ClockBase):
 
         self.animation = None
         self.animations = [
+            # animation.FillPie
+            animation.Blob,
             animation.Countdown, 
             animation.WanderingDigit, 
             animation.Sweeper
@@ -136,7 +138,7 @@ class Clock(ClockBase):
     def display_time_task(self, task):
         if self.animation is not None:
             if self.animation.active:
-                self.animation.update()
+                self.animation.animate()
                 if self.animation.exclusive:
                     return Task.cont
             else:
