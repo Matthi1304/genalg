@@ -277,6 +277,8 @@ class CalibrationApp(ClockBase):
             if delta > 0 and (scale[0] > scale[1]):
                 delta = -delta
             self.current_text.setTextScale((scale[0] + delta, scale[1]))
+        else:
+            self.toggle_help()
 
 
 if __name__ == "__main__":
