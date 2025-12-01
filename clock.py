@@ -70,7 +70,8 @@ class Clock(ClockBase):
         self.taskMgr.add(self.display_time_task, "DisplayTimeTask")
 
         self.tic_sound = self.loader.loadSfx("audio/tic.wav")
-        self.tic_sound.setVolume(1.0)
+        self.last_tic = -1
+        self.gong_sounds = [self.loader.loadSfx("audio/gong.mp3") for _ in range(12)] 
 
     
     def set_colors(self, *colors):
@@ -146,9 +147,19 @@ class Clock(ClockBase):
                     return Task.cont
             else:
                 self.animation = None
+
         t = datetime.now() + timedelta(seconds=self.time_delta)
-        if (t.microsecond < 10000) and self.tic_sound.status() != self.tic_sound.PLAYING:
+        if t.minute == 0:
+            h = t.hour % 12
+            if t.hour == 0:
+                h = 12
+            index = t.second // 2
+            if index < h and self.gong_sounds[index].status() != self.gong_sounds[index].PLAYING:
+                self.gong_sounds[index].play()
+        if t.second != self.last_tic:
             self.tic_sound.play()
+            self.last_tic = t.second
+
         self.display_time((t).strftime("%H%M%S"))
         return Task.cont
 
