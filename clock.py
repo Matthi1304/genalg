@@ -56,6 +56,8 @@ class Clock(ClockBase):
         self.add_help_text("Press 'a' to start or stop an animation")
         print("=======================================================================")
 
+        self.toggle_help() # do not show help by default
+
         self.set_colors(self.white, self.green, self.red)
 
         self.last_time = "245959"
