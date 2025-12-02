@@ -10,22 +10,23 @@ import sys
 from panda3d.core import *
 from direct.showbase.ShowBase import ShowBase
 from direct.task import Task
-from direct.gui.DirectGui import OnscreenText  
+from direct.gui.DirectGui import OnscreenText 
+
+BLACK = (0, 0, 0, 0)
 
 class Clock(ClockBase):
 
     def __init__(self, config_file="beamer.json"):
-        super().__init__(config_file=config_file, digit_color=(0, 0, 0, 1))
+        super().__init__(config_file=config_file, digit_color=BLACK)
 
-        self.black = (0, 0, 0, 1)
+        self.black = BLACK
         self.white = (1, 1, 1, 1)
         self.red = (1, 0, 0, 1 )
         self.green = (0, 1, 0, 1)
         self.blue = (0, 0, 1, 1)
         self.yellow = (1, 1, 0, 1)
         self.cyan = (0, 1, 1, 1)
-        self.nearly_white = (0.8, 0.8, 0.8, 1)
-        self.nearly_black = (0.1, 0.1, 0.1, 1)
+        self.nearly_black = (0.1, 0.1, 0.1, 0)
         self.default_color = self.black
         self.background_color = self.black
 

@@ -5,10 +5,8 @@ from random import choice, randint
 import traceback
 import clock
 
-
+BLACK = clock.BLACK
 FADER = 'fader'
-BLACK = (0, 0, 0, 1)
-
 
 class Animation:
 
