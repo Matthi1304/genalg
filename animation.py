@@ -141,7 +141,8 @@ def color_fader(digit, start_color, end_color, step, both_ways=True):
 
     def fade_to(start_color, end_color, step):
         for i in range(step + 1):
-            ratio = i / step
+            t = i / step
+            ratio = 1 - (1 - t) ** 2.5  # ease-out
             yield(
                 start_color[0] + (end_color[0] - start_color[0]) * ratio,
                 start_color[1] + (end_color[1] - start_color[1]) * ratio,
