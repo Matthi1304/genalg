@@ -32,10 +32,12 @@ class Clock(ClockBase):
         self.accept("c", self.change_colors)
         self.accept("s", self.color_all_digits)
 
-        self.accept("arrow_right", self.adjust_time, [60])
-        self.accept("arrow_right-repeat", self.adjust_time, [60])
-        self.accept("arrow_left", self.adjust_time, [-60])
-        self.accept("arrow_left-repeat", self.adjust_time, [-60])
+        self.accept("arrow_up", self.adjust_time, [60])
+        self.accept("arrow_up-repeat", self.adjust_time, [60])
+        self.accept("arrow_down", self.adjust_time, [-60])
+        self.accept("arrow_down-repeat", self.adjust_time, [-60])
+        self.accept("shift-arrow_up", self.adjust_time, [3600])
+        self.accept("shift-arrow_down", self.adjust_time, [-3600])
         self.accept("r", self.reset_time)
 
         self.animation = None
@@ -53,8 +55,8 @@ class Clock(ClockBase):
 
         self.add_help_text("Press 'c' to change highlight colors")
         self.add_help_text("Press 's' to show/hide of digits")
-        self.add_help_text("Use left or right arrow to change time")
-        self.add_help_text("Press 'r' to reset time")
+        self.add_help_text("Use (shift) up, down arrow to change time")
+        self.add_help_text("Press 'r' to reset time to real time")
         self.add_help_text("Press 'a' to start or stop an animation")
         print("=======================================================================")
 
@@ -63,11 +65,7 @@ class Clock(ClockBase):
         self.set_colors(self.white, self.green, self.red)
 
         self.last_time = "245959"
-        self.distribute_digits_in_quadrants()
-        self.hours = []
-        self.minutes = []
-        self.seconds = []
-        self.taskMgr.add(self.display_time_task, "DisplayTimeTask")
+        self.taskMgr.add(self.update_task, "MainLoop")
 
         self.tic_sound = self.loader.loadSfx("audio/tic.wav")
         self.last_tic = -1
@@ -133,13 +131,16 @@ class Clock(ClockBase):
 
     def reset_time(self):
         self.time_delta = 0
+        self.force_clock_update()
 
 
     def force_clock_update(self):
         self.last_time = "999999"
             
 
-    def display_time_task(self, task):
+    def update_task(self, task):
+        t = datetime.now() + timedelta(seconds=self.time_delta)
+        self.do_animation_at_random_time()
         if self.animation is not None:
             if self.animation.active:
                 self.animation.animate()
@@ -147,8 +148,24 @@ class Clock(ClockBase):
                     return Task.cont
             else:
                 self.animation = None
+        self.play_gong_at_hour(t)
+        self.display_time(t.strftime("%H%M%S"))
+        return Task.cont
 
-        t = datetime.now() + timedelta(seconds=self.time_delta)
+
+    def do_animation_at_random_time(self):
+        if self.animation is None:
+            t = datetime.now()
+            if not hasattr(self, 'next_animation_time'):
+                self.next_animation_time = t + timedelta(seconds=random.randint(118, 300))
+            if t >= self.next_animation_time:
+                delta = t - self.next_animation_time
+                self.next_animation_time = t + timedelta(seconds=random.randint(118, 300))
+                if delta.total_seconds() < 1:
+                    self.toggle_animation()
+
+    
+    def play_gong_at_hour(self, t):
         if t.minute == 0:
             h = t.hour % 12
             if t.hour == 0:
@@ -159,9 +176,6 @@ class Clock(ClockBase):
         if t.second != self.last_tic and t.microsecond < 100000:
             self.tic_sound.play()
             self.last_tic = t.second
-
-        self.display_time((t).strftime("%H%M%S"))
-        return Task.cont
 
 
     def toggle_animation(self):
@@ -178,58 +192,60 @@ class Clock(ClockBase):
                 self.color_all_digits(color=self.black)
 
 
-    def _set_color_to_random_digit(self, source, digit, color, remove_from_source=False):
-        candidates = list(filter(lambda item: item['digit'] == digit, source))
-        if not candidates:
-            print(f"Warning: no candidates found for digit {digit}, time {self.last_time}")
-            return None
-        else:
-            digit = random.choice(candidates)
-            if digit is not None:
-                digit['text_node'].setFg(color)
-                if remove_from_source:
-                    source.remove(digit)
-            return digit
-
-
-    def _reset(self, digits):
-        for digit in digits:
-            digit['text_node'].setFg(self.default_color) if digit is not None else None
-        digits.clear()
-
-
     def display_time(self, t):
         if len(t) == 5:
             t = '0' + t
         if t == self.last_time:
             return
-        # clear seconds
-        self._reset(self.seconds)
-        change_hours = t[2] != self.last_time[2] # every ten minutes
-        change_minutes = t[3] != self.last_time[3] # every minute
-        self.last_time = t
-        if change_hours:
-            self._reset(self.hours)
-            if t[0] == '0':
-                self.hours.append(self._set_color_to_random_digit(self.quadrants[0] + self.quadrants[1], int(t[1]), self.highlight_colors[0]))
-            else:
-                self.hours.append(self._set_color_to_random_digit(self.quadrants[0], int(t[0]), self.highlight_colors[0]))
-                self.hours.append(self._set_color_to_random_digit(self.quadrants[1], int(t[1]), self.highlight_colors[0]))
+        change_minutes = t[:3] != self.last_time[:3] # every minute
+        change_hours = change_minutes # also every minute
+        buckets = {i: [] for i in range(10)}
+        h_color, m_color, s_color = self.highlight_colors
+        h0, h1, m0, m1, s0, s1 = [int(c) for c in t]
+        for digit in self.placed_numbers:
+            fg = digit['text_node'].fg
+            if change_hours and fg == h_color:
+                digit['text_node'].setFg(self.default_color)
+            if change_minutes and fg == m_color:
+                digit['text_node'].setFg(self.default_color)
+            if fg == s_color:
+                digit['text_node'].setFg(self.default_color)
+            if digit['text_node'].fg == self.default_color:
+                buckets[digit['digit']].append(digit)
+        if change_hours and h0 == 0:
+            digit_h1 = random.choice(buckets[h1])
+            digit_h1['text_node'].setFg(h_color)
+            buckets[h1].remove(digit_h1)
+        iteration_count = 30
+        if change_hours and h0 != 0:
+            for _ in range(iteration_count):
+                digit_h0 = random.choice(buckets[h0])
+                digit_h1 = random.choice(buckets[h1])
+                if digit_h0 != digit_h1 and digit_h0['x'] < digit_h1['x'] and digit_h0['y'] < digit_h1['y']:
+                    digit_h0['text_node'].setFg(h_color)
+                    digit_h1['text_node'].setFg(h_color)
+                    buckets[h0].remove(digit_h0)
+                    buckets[h1].remove(digit_h1)
+                    break
         if change_minutes:
-            self._reset(self.minutes)
-            self.minutes = []
-            self.minutes.append(self._set_color_to_random_digit(self.quadrants[2], int(t[2]), self.highlight_colors[1]))
-            self.minutes.append(self._set_color_to_random_digit(self.quadrants[3], int(t[3]), self.highlight_colors[1]))
-        # set seconds randomly
-        used_digits = self.hours + self.minutes
-        while None in used_digits:
-            used_digits.remove(None)
-        unused_digits = self.placed_numbers.copy()
-        for digit in used_digits:
-            if (digit in unused_digits):
-                unused_digits.remove(digit)
-        self.seconds.append(self._set_color_to_random_digit(unused_digits, int(t[4]), self.highlight_colors[2], remove_from_source=True))
-        self.seconds.append(self._set_color_to_random_digit(unused_digits, int(t[5]), self.highlight_colors[2]))
+            for _ in range(30):
+                digit_m0 = random.choice(buckets[m0])
+                digit_m1 = random.choice(buckets[m1])
+                if digit_m0 != digit_m1 and digit_m0['x'] < digit_m1['x'] and digit_m0['y'] < digit_m1['y']:
+                    digit_m0['text_node'].setFg(m_color)
+                    digit_m1['text_node'].setFg(m_color)
+                    buckets[m0].remove(digit_m0)
+                    buckets[m1].remove(digit_m1)
+                    break
+        for _ in range(30):
+            digit_s0 = random.choice(buckets[s0])
+            digit_s1 = random.choice(buckets[s1])
+            if digit_s0 != digit_s1 and digit_s0['x'] < digit_s1['x']:
+                digit_s0['text_node'].setFg(s_color)
+                digit_s1['text_node'].setFg(s_color)
+                break
+        self.last_time = t
+
 
 
 if __name__ == "__main__":
