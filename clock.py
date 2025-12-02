@@ -1,5 +1,6 @@
 # Clock class for displaying the current time
 # load beamer.json and place the digits accordingly
+import traceback
 from base import ClockBase    
 import animation
 from datetime import datetime, timedelta
@@ -146,7 +147,10 @@ class Clock(ClockBase):
             else:
                 self.animation = None
         self.play_gong_at_hour(t)
-        self.display_time(t.strftime("%H%M%S"))
+        try:
+            self.display_time(t.strftime("%H%M%S"))
+        except Exception:
+            print(traceback.format_exc())
         return Task.cont
 
 
