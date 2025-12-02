@@ -194,57 +194,67 @@ class Clock(ClockBase):
 
 
     def display_time(self, t):
+
+        def clear_digits_with_color(color):
+            for digit in self.placed_numbers:
+                if digit['text_node'].fg == color:
+                    digit['text_node'].setFg(self.default_color)
+
+        def get_digits(i, color):
+            digits = []
+            for digit in self.placed_numbers:
+                if digit['digit'] == i and digit['text_node'].fg == color:
+                    digits.append(digit)
+            return digits
+
         if len(t) == 5:
             t = '0' + t
         if t == self.last_time:
             return
+
         change_minutes = t[:3] != self.last_time[:3] # every minute
         change_hours = change_minutes # also every minute
-        buckets = {i: [] for i in range(10)}
-        h_color, m_color, s_color = self.highlight_colors
+
         h0, h1, m0, m1, s0, s1 = [int(c) for c in t]
-        for digit in self.placed_numbers:
-            fg = digit['text_node'].fg
-            if change_hours and fg == h_color:
-                digit['text_node'].setFg(self.default_color)
-            if change_minutes and fg == m_color:
-                digit['text_node'].setFg(self.default_color)
-            if fg == s_color:
-                digit['text_node'].setFg(self.default_color)
-            if digit['text_node'].fg == self.default_color:
-                buckets[digit['digit']].append(digit)
-        if change_hours and h0 == 0:
-            digit_h1 = random.choice(buckets[h1])
-            digit_h1['text_node'].setFg(h_color)
-            buckets[h1].remove(digit_h1)
+        h_color, m_color, s_color = self.highlight_colors
         iteration_count = 30
+
+        clear_digits_with_color(s_color)
+        if change_minutes:
+            clear_digits_with_color(m_color)
+        if change_hours:
+            clear_digits_with_color(h_color)        
+
+        if change_hours and h0 == 0:
+            clear_digits_with_color(h_color)        
+            digit_h1 = random.choice(get_digits(h1, self.default_color))
+            digit_h1['text_node'].setFg(h_color)
+
         if change_hours and h0 != 0:
             for _ in range(iteration_count):
-                digit_h0 = random.choice(buckets[h0])
-                digit_h1 = random.choice(buckets[h1])
+                digit_h0 = random.choice(get_digits(h0, self.default_color))
+                digit_h1 = random.choice(get_digits(h1, self.default_color))
                 if digit_h0 != digit_h1 and digit_h0['x'] < digit_h1['x'] and digit_h0['y'] < digit_h1['y']:
                     digit_h0['text_node'].setFg(h_color)
                     digit_h1['text_node'].setFg(h_color)
-                    buckets[h0].remove(digit_h0)
-                    buckets[h1].remove(digit_h1)
                     break
+
         if change_minutes:
-            for _ in range(30):
-                digit_m0 = random.choice(buckets[m0])
-                digit_m1 = random.choice(buckets[m1])
+            for _ in range(iteration_count):
+                digit_m0 = random.choice(get_digits(m0, self.default_color))
+                digit_m1 = random.choice(get_digits(m1, self.default_color))
                 if digit_m0 != digit_m1 and digit_m0['x'] < digit_m1['x'] and digit_m0['y'] < digit_m1['y']:
                     digit_m0['text_node'].setFg(m_color)
                     digit_m1['text_node'].setFg(m_color)
-                    buckets[m0].remove(digit_m0)
-                    buckets[m1].remove(digit_m1)
                     break
-        for _ in range(30):
-            digit_s0 = random.choice(buckets[s0])
-            digit_s1 = random.choice(buckets[s1])
+        for _ in range(iteration_count):
+            digit_s0 = random.choice(get_digits(s0, self.default_color))
+            digit_s1 = random.choice(get_digits(s1, self.default_color))
             if digit_s0 != digit_s1 and digit_s0['x'] < digit_s1['x']:
                 digit_s0['text_node'].setFg(s_color)
                 digit_s1['text_node'].setFg(s_color)
                 break
+        # success!
         self.last_time = t
 
 
