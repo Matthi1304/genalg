@@ -53,6 +53,8 @@ class CalibrationApp(ClockBase):
         self.accept("shift-arrow_left", self.resize, [-0.01])
         self.accept("shift-arrow_left-repeat", self.resize, [-0.01])
 
+        self.accept("m", self.move_digit_to_front)
+
         self.accept("v", self.roll_number, [-0.3])
         self.accept("v-repeat", self.roll_number, [-0.3])
         self.accept("shift-v", self.roll_number, [0.3])
@@ -77,6 +79,7 @@ class CalibrationApp(ClockBase):
         self.add_help_text("Use shift + arrow keys to resize digit")
         self.add_help_text("Use (shift) h to rotate digit horizontaly")
         self.add_help_text("Use (shift) v to rotate digit vertically")
+        self.add_help_text("m = move digit to front")
         self.add_help_text("Space = same as left mouse button")
         self.add_help_text("s = save configuration")
         self.add_help_text("q = quit (and save configuration)")
@@ -261,6 +264,19 @@ class CalibrationApp(ClockBase):
         if self.current_text:
             self.current_text.setScale(self.spot_size * 2)
     
+
+    def move_digit_to_front(self):
+        """Move current digit to the back of the rendering order"""
+        if self.current_text:
+            self.current_text.reparentTo(self.aspect2d)
+        else:
+            item = self.numberAtMouse()
+            if item is not None:
+                item['text_node'].reparentTo(self.aspect2d)
+                self.placed_numbers.remove(item)
+                self.placed_numbers.append(item)
+
+
 
     def roll_number(self, delta):
         """Rotate current number"""
