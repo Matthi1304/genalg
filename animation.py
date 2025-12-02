@@ -62,7 +62,7 @@ class Animation:
         """
         for digit in filter(lambda d: FADER in d, self.clock.placed_numbers):
             digit.pop(FADER, None)
-        self.clock.color_all_digits(color=self.clock.default_color)
+        self.clock.color_all_digits(color=BLACK)
         if self.sound:
             self.sound.stop()
             self.sound = None
@@ -316,7 +316,7 @@ class Sweeper(Animation):
         sweep_x = self.x_start + (self.x_end - self.x_start) * ((self.position + 1.0) / 2.0)
         for digit in self.clock.placed_numbers:
             if digit['x'] <= sweep_x - self.width:
-                digit['text_node'].setFg(self.clock.default_color)
+                digit['text_node'].setFg(BLACK)
             elif digit['x'] <= sweep_x:
                 digit['text_node'].setFg(self.target_color)
         self.position += self.step
@@ -361,13 +361,13 @@ class Countdown(Animation):
                     else:
                         digit['text_node'].setFg(self.target_color)
                 elif not self.fade_animation and self.hide_counted_digits and digit['digit'] > self.current_number:
-                    digit['text_node'].setFg(self.clock.default_color)
+                    digit['text_node'].setFg(BLACK)
             self.current_number -= 1
         if self.current_number == -1 and not self.hide_counted_digits and not self.fade_animation:
             # if all colors are shown, then fade them out at the end
             for digit in self.clock.placed_numbers:
                 if digit['digit'] >= 0:
-                    register_color_fader(digit, digit['text_node'].fg, self.clock.default_color, int(self.step * 1.4))
+                    register_color_fader(digit, digit['text_node'].fg, BLACK, int(self.step * 1.4), both_ways=False)
             self.fade_animation = True
         if self.fade_animation:
             return self.fade()                    
