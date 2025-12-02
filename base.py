@@ -161,29 +161,6 @@ class ClockBase(ShowBase):
         return (min_x, min_y, max_x, max_y)
     
 
-    def distribute_digits_in_quadrants(self):
-        if not self.placed_numbers:
-            print("No placed numbers to distribute in quadrants")
-            return
-        min_x, min_y, max_x, max_y = self.get_display_area()
-        print(f"Display area X: {min_x} - {max_x}, Y: {min_y} - {max_y}")
-        quadrants = [[] for _ in range(4)]
-        mid_x = (min_x + max_x) / 2
-        mid_y = (min_y + max_y) / 2
-        for item in self.placed_numbers:
-            x = item['x']
-            y = item['y']
-            if x < mid_x and y < mid_y:
-                quadrants[2].append(item)  # Bottom-left
-            elif x >= mid_x and y < mid_y:
-                quadrants[3].append(item)  # Bottom-right
-            elif x < mid_x and y >= mid_y:
-                quadrants[0].append(item)  # Top-left
-            else:
-                quadrants[1].append(item)  # Top-right
-        self.quadrants = quadrants
-
-
     def print_stats(self):
         """Print statistics of placed numbers"""
         if not self.placed_numbers:
@@ -201,25 +178,16 @@ class ClockBase(ShowBase):
         # we need 5 times the digit 0 (0:00:00)
         # wee need 6 times the digits 1 and 2 (11:11:11, 22:22:22)
         # we need 5 times the digits 3, 4, 5 (3:33:33, 4:44:44, 5:55:55)
-        # we need 4 times the digits 6, 7, 8, 9 (e.g. 6:16:36, 9:19:59)
-        amounts_needed = [5, 6, 6, 5, 5, 5, 4, 4, 4, 4]
+        # we need 3 times the digits 6, 7, 8, 9 (e.g. 6:16:36, 9:19:59)
+        amounts_needed = [5, 6, 6, 5, 5, 5, 3, 3, 3, 3]
         print("=======================================================================")
         print("Placed number statistics:")
         print(f"   Total placements: {len(self.placed_numbers)} (minimum number of numbers needed: {sum(amounts_needed)})")
         for i, count in enumerate(digit_counters):
             if (count < amounts_needed[i]):
-                print(f"   digit {i}: {count:2d}, min={amounts_needed[i]}) *** MISSING: {amounts_needed[i] - count} ***")
+                print(f"   digit {i}: {count:2d}, min={amounts_needed[i]} *** MISSING: {amounts_needed[i] - count} ***")
             else:
                 print(f"   digit {i}: {count:2d}, min={amounts_needed[i]}")
-        self.distribute_digits_in_quadrants()
-        colors = [ (0,1,0,1), (0,0,1,1), (1,1,0,1), (1,0,1,1) ] # green / blue / yellow / magenta
-        needed = [ set([0,1,2]), set(range(10)), set(range(6)), set(range(10)) ]
-        all = set([i for i in range(10)])
-        for i, quad in enumerate(self.quadrants):
-            for digit in quad:
-                digit['text_node'].setFg(colors[i])
-            digits = set([digit['digit'] for digit in quad])
-            print(f" Quadrant {i}: count = {len(digits):3d} | included = {str(digits):<30} | missing = {needed[i] - digits}")
         print("=======================================================================")
     
 
