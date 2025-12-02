@@ -65,6 +65,8 @@ class CalibrationApp(ClockBase):
         self.accept("shift-h", self.rotate_number, [0.01])
         self.accept("shift-h-repeat", self.rotate_number, [0.01])
 
+        self.accept("c", self.change_digit_color)
+
         self.accept("q", self.quit_and_save)
         self.accept("s", self.save)
     
@@ -81,6 +83,7 @@ class CalibrationApp(ClockBase):
         self.add_help_text("Use (shift) v to rotate digit vertically")
         self.add_help_text("m = move digit to front")
         self.add_help_text("Space = same as left mouse button")
+        self.add_help_text("c = change highlight colors")
         self.add_help_text("s = save configuration")
         self.add_help_text("q = quit (and save configuration)")
         print("=======================================================================")
@@ -117,6 +120,18 @@ class CalibrationApp(ClockBase):
         self.spot.setTransparency(TransparencyAttrib.MAlpha)
         self.spot.setScale(self.spot_size)
         self.spot.setPos(0, 0, 0)
+
+
+    def change_digit_color(self):
+        colors = [
+            (0, 1, 0, 1),
+            (1, 1, 0, 1),
+            (0, 0, 1, 1),
+            (0, 0, 0, 0)
+        ]
+        next_index = (colors.index(self.digit_color) + 1) % len(colors)
+        self.set_digit_color(colors[next_index])
+        self.mouse_move(None, force=True)  # Update highlight
 
 
     def get_mouse_pos_2d(self):
@@ -233,12 +248,12 @@ class CalibrationApp(ClockBase):
             self.current_text.setPos(x + dx, y + dy)
 
 
-    def mouse_move(self, task):
+    def mouse_move(self, task, force=False):
         """Update task for mouse movement"""
         mouse_pos = self.get_mouse_pos_2d()
         if mouse_pos is None:
             return Task.cont
-        if (mouse_pos.x == self.spot.getX() and mouse_pos.y == self.spot.getZ()):
+        if not force and (mouse_pos.x == self.spot.getX() and mouse_pos.y == self.spot.getZ()):
             # no mouse movement
             return Task.cont
         self.spot.show()  # Ensure spot is visible when mouse is moved
@@ -248,12 +263,11 @@ class CalibrationApp(ClockBase):
             x, y = self.getNumberPosition()
             self.current_text.setPos(x, y)
         else:
-            if hasattr(self, 'text_node_at_mouse') and self.text_node_at_mouse:
-                self.text_node_at_mouse.setFg(self.digit_color)
-            item = self.numberAtMouse()
-            if item is not None:
-                item['text_node'].setFg(self.red)
-                self.text_node_at_mouse = item['text_node']
+            if hasattr(self, 'highlight') and self.highlight:
+                self.highlight['text_node'].setFg(self.digit_color)
+            self.highlight = self.numberAtMouse()
+            if self.highlight is not None:
+                self.highlight['text_node'].setFg(self.red)
         return Task.cont
     
 

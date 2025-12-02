@@ -21,15 +21,14 @@ class Clock(ClockBase):
 
         self.black = BLACK
         self.white = (1, 1, 1, 1)
-        self.red = (1, 0, 0, 1 )
+        self.nearly_black = (0.1, 0.1, 0.1, 1)
+        self.red = (1, 0, 0, 1)
         self.green = (0, 1, 0, 1)
         self.blue = (0, 0, 1, 1)
         self.yellow = (1, 1, 0, 1)
         self.cyan = (0, 1, 1, 1)
-        self.nearly_black = (0.1, 0.1, 0.1, 0)
         self.default_color = self.black
         self.background_color = self.black
-
 
         self.color_sets = [
             ((40/255, 53/255, 131/255, 1), (253/255, 235/255, 25/255, 1), (63/255, 165/255, 53/255, 1)), # poster colors: dark blue, yellow, green
@@ -64,7 +63,8 @@ class Clock(ClockBase):
         ]
         self.accept("a", self.toggle_animation, [None])
         for i, animation_class in enumerate(self.animations, start=1):
-            self.accept(str(i), self.toggle_animation, [animation_class])
+            if i <= 10:
+                self.accept(str(i % 10), self.toggle_animation, [animation_class])
 
         self.accept("q", sys.exit)
 
