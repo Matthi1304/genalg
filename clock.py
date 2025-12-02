@@ -89,11 +89,8 @@ class Clock(ClockBase):
             self.set_colors(self.red, self.green, self.yellow)
         else:
             self.set_colors(self.white, self.green, self.red)
-        self._fix_highlight_colors()
-        self.force_clock_update()
 
-        self._fix_highlight_colors()
-        self.force_clock_update()
+        self.color_all_digits(self.default_color)
 
     
     def color_all_digits(self, color=None):
