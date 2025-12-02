@@ -44,13 +44,17 @@ class Clock(ClockBase):
 
         self.animation = None
         self.animations = [
-            # animation.FillPie
             animation.Blob,
             animation.Countdown, 
-            animation.WanderingDigit, 
-            animation.Sweeper
+            animation.WanderingDigit,
+            animation.Random,
+            animation.Sweeper,
+            animation.FillPie,
+            animation.Heartbeat
         ]
-        self.accept("a", self.toggle_animation)
+        self.accept("a", self.toggle_animation, [None])
+        for i, animation_class in enumerate(self.animations, start=1):
+            self.accept(str(i), self.toggle_animation, [animation_class])
 
         self.accept("q", sys.exit)
 
@@ -188,15 +192,16 @@ class Clock(ClockBase):
             self.last_tic = t.second
 
 
-    def toggle_animation(self):
+    def toggle_animation(self, animation_class=None):
         if self.animation is not None and self.animation.active:
             self.animation.stop()
             self.animation = None
             self.force_clock_update()
         else:
-            clazz = self.animations.pop(0)
-            self.animations.append(clazz)
-            self.animation = clazz(self)
+            if animation_class is None:
+                animation_class = self.animations.pop(0)
+                self.animations.append(animation_class)
+            self.animation = animation_class(self)
             self.animation.start()
             if self.animation.exclusive:
                 self.color_all_digits(color=self.black)

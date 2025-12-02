@@ -1,6 +1,9 @@
+from itertools import chain
 from math import atan2, pi
 import os
 from random import choice, randint
+import traceback
+import clock
 
 
 FADER = 'fader'
@@ -73,9 +76,14 @@ class Animation:
         """
         if not self.active:
             return False
-        continue_animation = self.update()
+        try:
+            continue_animation = self.update()
+        except Exception as e:
+            print("Exception in animation:", e)
+            traceback.print_exc()
+            continue_animation = False
         self.counter += 1
-        if continue_animation == False:
+        if not continue_animation:
             self.stop()
             return False
         return True
@@ -99,8 +107,7 @@ class Animation:
         has_faders = False
         for digit in filter(lambda d: FADER in d, self.clock.placed_numbers):
             try:
-                next_color = next(digit[FADER])
-                digit['text_node'].setFg(next_color)
+                next(digit[FADER])
                 has_faders = True
             except StopIteration:
                 digit.pop(FADER, None)
@@ -125,7 +132,7 @@ def distance_from_center(digit):
     return (digit['x'] ** 2 + digit['y'] ** 2) ** 0.5
 
 
-def register_color_fader(digit, start_color, end_color, step, both_ways=True):
+def color_fader(digit, start_color, end_color, step, both_ways=True):
 
     def fade_to(start_color, end_color, step):
         for i in range(step + 1):
@@ -150,8 +157,11 @@ def register_color_fader(digit, start_color, end_color, step, both_ways=True):
             yield color
 
     generator = fade_to_and_back(start_color, end_color, step) if both_ways else fade_to(start_color, end_color, step)
-    digit[FADER] = generator
-    
+    if digit:
+        updater = update_and_get_next_color(digit, generator)
+        digit[FADER] = updater
+        return updater
+    return generator
 
 
 def sound_fader(sound):
@@ -168,6 +178,63 @@ def sound_fader(sound):
 # Animations
 
 
+class Heartbeat(Animation):
+    """
+    An animation that makes all digits pulse like a heartbeat.
+    """
+
+    def __init__(self, clock):
+        super().__init__(clock, exclusive=True)
+        self.step = 100  # number of update steps for a full fade
+        self.max_pulses = randint(3, 5)  # number of pulses
+
+    def start(self):
+
+        def update_and_get_next_color(digit, fader):
+            for color in fader:
+                digit['text_node'].setFg(color)
+                yield color    
+
+        super().start()
+        _, y1, _, y2 = self.clock.get_display_area()
+        max_radius = max(abs(y1), abs(y2))
+        light_red = (0.4, 0.1, 0.1, 1)
+        red = (1, 0.1, 0.1, 1)
+        initial_fade_in_steps = int(self.step / light_red[0])
+        for digit in filter(lambda d: distance_from_center(d) <= max_radius, self.clock.placed_numbers):
+            fader = color_fader(None, BLACK, red, initial_fade_in_steps, both_ways=False) # fade in
+            for _ in range(self.max_pulses):
+                fader = chain(fader, color_fader(None, red, light_red, self.step, both_ways=True))
+            fader = chain(fader, color_fader(None, red, BLACK, initial_fade_in_steps, both_ways=False)) # fade out
+            digit[FADER] = update_and_get_next_color(digit, fader)
+
+
+    def update(self):
+        return self.fade()
+
+
+class Random(Animation):
+    """
+    An animation that fades random digits to random colors.
+    """
+
+    def __init__(self, clock):
+        super().__init__(clock)
+        self.interval = randint(5, 20)
+        self.duration = self.interval * randint(30, 40)
+        self.fade_duration = randint(self.interval * 10, self.interval * 20)
+
+
+    def update(self):
+        if self.counter <= self.duration and self.counter % self.interval == 0:
+            digit = choice(self.clock.placed_numbers)
+            if not FADER in digit:
+                target_color = (randint(0, 255) / 255.0, randint(0, 255) / 255.0, randint(0, 255) / 255.0, 1)
+                color_fader(digit, BLACK, target_color, self.fade_duration, both_ways=True)
+        return self.fade()
+
+
+
 class FillPie(Animation):
     """
     An animation that fills the display area like a pie chart, coloring digits as it goes.
@@ -179,24 +246,22 @@ class FillPie(Animation):
             self.target_color = choice([clock.red, clock.green, clock.blue, clock.yellow, clock.cyan])
         else:
             self.target_color = color
-        self.step = 0.02 # fraction of full circle per update
+        # degrees, full circle is 360 degrees
         self.current_angle = 0.0
-    
+        self.offset = 90.0  # start from top (12 o'clock)
+        self.step = 1.0
+        _, y1, _, y2 = clock.get_display_area()
+        self.max_radius = max(abs(y1), abs(y2))
 
-    def start(self):
-        super().start()
-    
 
     def update(self):
-        angle_limit = self.current_angle + self.step * 360.0
-        for digit in filter(lambda d: not FADER in d, self.clock.placed_numbers):
-            angle = (180.0 / pi) * -1.0 * atan2(digit['y'], digit['x']) + 180.0
+        angle_limit = self.current_angle + self.step
+        for digit in filter(lambda d: not FADER in d and distance_from_center(d) <= self.max_radius, self.clock.placed_numbers):
+            angle = ((180.0 / pi) * -1.0 * atan2(digit['y'], digit['x']) + self.offset) % 360.0
             if self.current_angle <= angle < angle_limit:
-                register_color_fader(digit, BLACK, self.target_color, 100)
-        self.current_angle += self.step * 360.0
-        if self.current_angle >= 360.0:
-            return self.fade()
-        return True
+                color_fader(digit, BLACK, self.target_color, 500)
+        self.current_angle += self.step
+        return self.fade() or self.current_angle <= 360.0
 
 
 class Blob(Animation):
@@ -235,7 +300,7 @@ class Blob(Animation):
                 distance = distance_from_center(digit)
                 interval = (self.current_radius, self.current_radius + self.radius_step)
                 if (min(interval) <= distance < max(interval)):
-                    register_color_fader(digit, BLACK, self.target_color, self.fade_cycle)
+                    color_fader(digit, BLACK, self.target_color, self.fade_cycle)
             self.current_radius += self.radius_step
         return self.fade()
     
@@ -279,7 +344,7 @@ class WanderingDigit(Animation):
                 skip=lambda item: (self.number <= 9 and item['digit'] != self.number) or item in self.visited
             )
             if next is not None:
-                register_color_fader(next, BLACK, self.target_color, self.step * 2)
+                color_fader(next, BLACK, self.target_color, self.step * 2)
                 self.visited.append(next)
                 self.pos = (next['x'], next['y'])
         return self.fade()
@@ -353,7 +418,7 @@ class Countdown(Animation):
             for digit in self.clock.placed_numbers:
                 if digit['digit'] == self.current_number:
                     if self.fade_animation:
-                        register_color_fader(digit, BLACK, self.target_color, int(self.step * 1.4))
+                        color_fader(digit, BLACK, self.target_color, int(self.step * 1.4))
                     else:
                         digit['text_node'].setFg(self.target_color)
                 elif not self.fade_animation and self.hide_counted_digits and digit['digit'] > self.current_number:
@@ -363,7 +428,7 @@ class Countdown(Animation):
             # if all colors are shown, then fade them out at the end
             for digit in self.clock.placed_numbers:
                 if digit['digit'] >= 0:
-                    register_color_fader(digit, digit['text_node'].fg, BLACK, int(self.step * 1.4), both_ways=False)
+                    color_fader(digit, digit['text_node'].fg, BLACK, int(self.step * 1.4), both_ways=False)
             self.fade_animation = True
         if self.fade_animation:
             return self.fade()                    
