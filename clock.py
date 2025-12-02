@@ -1,5 +1,6 @@
 # Clock class for displaying the current time
 # load beamer.json and place the digits accordingly
+import os
 import traceback
 from base import ClockBase    
 import animation
@@ -68,10 +69,18 @@ class Clock(ClockBase):
         self.last_time = "245959"
         self.taskMgr.add(self.update_task, "MainLoop")
 
-        self.tic_sound = self.loader.loadSfx("audio/tic.wav")
+        self.tic_sound = self.loader.loadSfx(self.find_audio_file("tic.", "audio/tic.wav"))
         self.last_tic = -1
-        self.gong_sounds = [self.loader.loadSfx("audio/gong.mp3") for _ in range(12)] 
+        gong_sound_file = self.find_audio_file("gong.", "audio/gong.wav")
+        self.gong_sounds = [self.loader.loadSfx(gong_sound_file) for _ in range(12)] 
 
+
+    def find_audio_file(self, prefix, default=None):
+        for filename in os.listdir("audio"):
+            if filename.startswith(prefix):
+                return os.path.join("audio", filename)
+        return default
+    
     
     def set_colors(self, *colors):
         if len(colors) == 1:

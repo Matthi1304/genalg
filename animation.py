@@ -20,11 +20,7 @@ class Animation:
             else:
                 self.sound_file = None
         else:
-            prefix = self.__class__.__name__.lower() + "."
-            for filename in os.listdir("audio"):
-                if filename.startswith(prefix):
-                    self.sound_file = os.path.join("audio", filename)
-                    break
+            self.sound_file = clock.find_audio_file(self.__class__.__name__.lower() + ".")
             if not self.sound_file:
                 print(f"No sound file for animation found, should match 'audio/{self.__class__.__name__.lower()}.*'.")
 
