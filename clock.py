@@ -29,6 +29,15 @@ class Clock(ClockBase):
         self.default_color = self.black
         self.background_color = self.black
 
+
+        self.color_sets = [
+            ((40/255, 53/255, 131/255, 1), (253/255, 235/255, 25/255, 1), (63/255, 165/255, 53/255, 1)), # poster colors: dark blue, yellow, green
+            (self.white, self.green, self.red),
+            (self.green, self.blue, self.red),
+            (self.yellow, self.red, self.blue),
+            (self.red, self.green, self.yellow)
+        ]
+
         self.time_delta = 0  # time offset in seconds
 
         self.accept("c", self.change_colors)
@@ -64,11 +73,12 @@ class Clock(ClockBase):
         self.add_help_text("Use (shift) up, down arrow to change time")
         self.add_help_text("Press 'r' to reset time to real time")
         self.add_help_text("Press 'a' to start or stop an animation")
+        self.add_help_text("Press a number key to trigger a specific animation")
         print("=======================================================================")
 
         self.toggle_help() # do not show help by default
 
-        self.set_colors(self.white, self.green, self.red)
+        self.set_colors(self.color_sets[0])
 
         self.last_time = "245959"
         self.taskMgr.add(self.update_task, "MainLoop")
@@ -86,24 +96,15 @@ class Clock(ClockBase):
         return default
     
     
-    def set_colors(self, *colors):
-        if len(colors) == 1:
-            self.highlight_colors = [colors[0] for _ in range(6)]
-        elif len(colors) == 3:
-            self.highlight_colors = [colors[0], colors[1], colors[2]]
+    def set_colors(self, colors):
+        self.highlight_colors = colors
         self.force_clock_update()
 
 
     def change_colors(self):
-        if self.highlight_colors[0] == self.white:
-            self.set_colors(self.green, self.blue, self.red)
-        elif self.highlight_colors[0] == self.green:
-            self.set_colors(self.yellow, self.red, self.blue)
-        elif self.highlight_colors[0] == self.yellow:
-            self.set_colors(self.red, self.green, self.yellow)
-        else:
-            self.set_colors(self.white, self.green, self.red)
-
+        index = self.color_sets.index(self.highlight_colors)
+        index = (index + 1) % len(self.color_sets)
+        self.set_colors(self.color_sets[index])
         self.color_all_digits(self.default_color)
 
     
