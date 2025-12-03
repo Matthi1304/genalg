@@ -1,11 +1,75 @@
 import os
 import sys
 import json
-from panda3d.core import TextNode
+from panda3d.core import TextNode, Plane, Vec3, Point3, Point2
 from panda3d.core import *
+from direct.showbase import ShowBaseGlobal
 from direct.showbase.ShowBase import ShowBase
 from direct.task import Task
 from direct.gui.DirectGui import OnscreenText
+
+
+class DigitNode(NodePath):
+
+    """A TextNode representing a single digit"""
+    def __init__(self, digit, color=(0,1,0,1), font=None, parent=None):
+        super().__init__(f"digit_{digit}")
+        # make a text node
+        textNode = TextNode('')
+        self.textNode = textNode
+
+        textNode.setText(str(digit))
+        textNode.setAlign(TextNode.ACenter)
+        textNode.setTextColor(color)
+        if font:
+            textNode.setFont(font)
+        
+        # Set ourselves up as the NodePath that points to this node.
+        self.assign(parent.attachNewNode(self.textNode, 0))
+
+    
+    def __getFg(self):
+        return self.textNode.getTextColor()
+
+
+    def setFg(self, fg):
+        self.textNode.setTextColor(fg[0], fg[1], fg[2], fg[3])
+
+
+    fg = property(__getFg, setFg)
+
+
+    def setText(self, text):
+        assert not isinstance(text, bytes)
+        self.textNode.setWtext(text)
+
+
+    def getText(self):
+        return self.textNode.getWtext()
+
+
+    text = property(getText, setText)
+
+
+    def setPos(self, *p):
+        if (isinstance(p, tuple) or isinstance(p, list)) and len(p) == 2:
+            super().setPos(p[0], 0, p[1])
+        else:
+            super().setPos(p)
+    
+
+    def getPos(self):
+        p = super().getPos()
+        return (p[0], p[2])
+    
+
+    def setScale(self, *s):
+        if (isinstance(s, tuple) or isinstance(s, list)):
+            if len(s) == 1:
+                super().setScale(s[0], 1, s[0])
+            else:
+                super().setScale(s[0], 1, s[1])
+
 
 class ClockBase(ShowBase):
 
@@ -22,6 +86,12 @@ class ClockBase(ShowBase):
         # Setup orthographic camera for 2D
         self.camera.setPos(0, -10, 0)
         self.camera.lookAt(0, 0, 0)
+
+        # plane to convert screen coordinates to world coordinates
+        self.plane = Plane(Vec3(0, 1, 0), Point3(0, 0, 0))
+
+        self.scene = self.render.attachNewNode("scene")
+        self.scene.reparentTo(self.render)
 
         self.setBackgroundColor(0, 0, 0, 1)
 
@@ -50,6 +120,20 @@ class ClockBase(ShowBase):
             item['text_node'].setFg(color)
 
 
+    def screen_to_world(self, x, y):
+        """Transform screen coordinates (0..1, 0..1) to world coordinates"""
+        # get near and far points
+        world_point = Point3()
+        near_point = Point3()
+        far_point = Point3()
+        self.camLens.extrude(Point2(x, y), near_point, far_point)
+        near_point = render.getRelativePoint(self.camera, near_point)
+        far_point = render.getRelativePoint(self.camera, far_point)
+        if self.plane.intersectsLine(world_point, near_point, far_point):
+            return (world_point[0], world_point[2])
+        raise RuntimeError(f"No intersection with plane for screen coordinates ({x}, {y})")
+    
+    
     def load_configuration(self, config_file="beamer.json"):        
         """Load configuration from JSON file if it exists"""
         print(f"Loading configuration from {config_file}")
@@ -66,11 +150,19 @@ class ClockBase(ShowBase):
                 # 'xscale': self.current_text.getScale()[0],
                 # 'yscale': self.current_text.getScale()[1],
                 # 'roll': self.current_text.getTextR(),
-                if item.get('scale', None) is not None:
-                    legacy_scale = item.get('scale')
-                    item['xscale'] = legacy_scale
-                    item['yscale'] = legacy_scale
-                    item['roll'] = 0
+                if item.get('roll', None) is not None:
+                    # legacy support for old format
+                    x, y = self.screen_to_world(item['x'], item['y'])
+                    item['x'] = x
+                    item['y'] = y
+                    xscale = item['xscale']
+                    yscale = item['yscale']
+                    roll = item['roll']
+                    item['scale'] = xscale * 3.0
+                    # todo: aply roll to xroll, yscale to yroll
+                    del item['roll']
+                    del item['xscale']
+                    del item['yscale']
                 text_node = self.create_text_node(item)
                 item['text_node'] = text_node
             print(f"Loaded {len(config)} numbers from {config_file}")
@@ -81,19 +173,12 @@ class ClockBase(ShowBase):
 
 
     def create_text_node(self, item):
-        """Create a text node for the given item"""
-        text_node = OnscreenText(
-            text=str(item['digit']),
-            pos=(item['x'], item['y']),
-            scale=(item.get('xscale', 0.1), item.get('yscale', 0.1)),
-            fg=self.digit_color,
-            align=TextNode.ACenter,
-            font=self.font,
-            roll=item['roll'],
-            mayChange=True
-        )
-        return text_node
-
+        """Factory method to create a TextNode for the given item"""
+        tn = DigitNode(item['digit'], color=self.digit_color, font=self.font, parent=self.scene)
+        tn.setPos(item['x'], 0, item['y'])
+        tn.setScale(item['scale'])
+        # tn.setR(item['roll'])
+        return tn
 
     def save(self):
         """Save configuration to JSON and quit"""
