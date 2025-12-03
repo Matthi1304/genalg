@@ -1,7 +1,7 @@
 import os
 import sys
 import json
-from panda3d.core import TextNode, Plane, Vec3, Point3, Point2
+from panda3d.core import TextNode, Plane, Vec3, Point3, Point2, NodePath
 from panda3d.core import *
 from direct.showbase import ShowBaseGlobal
 from direct.showbase.ShowBase import ShowBase
@@ -81,6 +81,11 @@ class ClockBase(ShowBase):
         self.font = None
         if os.path.exists("Epoch-BF6881cf42e6637.otf"):
             self.font = loader.loadFont('Epoch-BF6881cf42e6637.otf')
+            self.font.setPixelsPerUnit(200)
+            # self.font.set_render_mode(TextFont.RM_solid)
+            self.font.set_minfilter(SamplerState.FT_linear) # FT_linear / FT_linear_mipmap_linear
+            self.font.set_magfilter(SamplerState.FT_linear)
+            self.font.setScaleFactor(1.3)
         # Disable default mouse camera control
         self.disableMouse()        
         # Setup orthographic camera for 2D
@@ -134,6 +139,25 @@ class ClockBase(ShowBase):
         raise RuntimeError(f"No intersection with plane for screen coordinates ({x}, {y})")
     
     
+    def convert_config(self, config):
+        """Convert legacy configuration format to new format"""
+        scale_factor = self.screen_to_world(1.0, 0.0)[0] - 2.0
+        aspect_ratio = self.getAspectRatio()
+        for item in config:
+            # legacy support for old format
+            x, y = self.screen_to_world(item['x'] / aspect_ratio, item['y'])
+            item['x'] = x
+            item['y'] = y
+            xscale = item['xscale']
+            roll = item['roll']
+            item['scale'] = xscale * scale_factor
+            item['zroll'] = -roll * 0.76
+            # ignoring yscale, since this wasn't really used before
+            del item['roll']
+            del item['xscale']
+            del item['yscale']
+    
+
     def load_configuration(self, config_file="beamer.json"):        
         """Load configuration from JSON file if it exists"""
         print(f"Loading configuration from {config_file}")
@@ -144,25 +168,12 @@ class ClockBase(ShowBase):
             with open(self.config_file, 'r') as f:
                 config = json.load(f)
             self.placed_numbers = config
+            if len(config) > 0 and 'roll' in config[0]:
+                print("Legacy configuration format detected, converting...")
+                self.convert_config(config)
             # Load each number from the config
             for item in config:
                 # Create text node for the number (green, fixed)
-                # 'xscale': self.current_text.getScale()[0],
-                # 'yscale': self.current_text.getScale()[1],
-                # 'roll': self.current_text.getTextR(),
-                if item.get('roll', None) is not None:
-                    # legacy support for old format
-                    x, y = self.screen_to_world(item['x'], item['y'])
-                    item['x'] = x
-                    item['y'] = y
-                    xscale = item['xscale']
-                    yscale = item['yscale']
-                    roll = item['roll']
-                    item['scale'] = xscale * 3.0
-                    # todo: aply roll to xroll, yscale to yroll
-                    del item['roll']
-                    del item['xscale']
-                    del item['yscale']
                 text_node = self.create_text_node(item)
                 item['text_node'] = text_node
             print(f"Loaded {len(config)} numbers from {config_file}")
@@ -177,8 +188,10 @@ class ClockBase(ShowBase):
         tn = DigitNode(item['digit'], color=self.digit_color, font=self.font, parent=self.scene)
         tn.setPos(item['x'], 0, item['y'])
         tn.setScale(item['scale'])
-        # tn.setR(item['roll'])
+        # tn.setHpr(item.get('xroll', 0), item.get('yroll', 0), item.get('zroll', 0))
+        tn.setHpr(item.get('xroll', 0), item.get('yroll', 0), item.get('zroll', 0))
         return tn
+
 
     def save(self):
         """Save configuration to JSON and quit"""
