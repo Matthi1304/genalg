@@ -53,17 +53,19 @@ class CalibrationApp(ClockBase):
         self.accept("shift-arrow_left", self.resize, [-0.01])
         self.accept("shift-arrow_left-repeat", self.resize, [-0.01])
 
-        self.accept("m", self.move_digit_to_front)
-
-        self.accept("v", self.roll_number, [-0.3])
-        self.accept("v-repeat", self.roll_number, [-0.3])
-        self.accept("shift-v", self.roll_number, [0.3])
-        self.accept("shift-v-repeat", self.roll_number, [0.3])
-
-        self.accept("h", self.rotate_number, [-0.01])
-        self.accept("h-repeat", self.rotate_number, [-0.01])
-        self.accept("shift-h", self.rotate_number, [0.01])
-        self.accept("shift-h-repeat", self.rotate_number, [0.01])
+        self.accept("x", self.roll, ['x', -1])
+        self.accept("x-repeat", self.roll, ['x', -1])
+        self.accept("shift-x", self.roll, ['x', 1])
+        self.accept("shift-x-repeat", self.roll, ['x', 1])
+        self.accept("y", self.roll, ['y', -1])
+        self.accept("y-repeat", self.roll, ['y', -1])
+        self.accept("shift-y", self.roll, ['y', 1])
+        self.accept("shift-y-repeat", self.roll, ['y', 1])
+        self.accept("z", self.roll, ['z', -1])
+        self.accept("z-repeat", self.roll, ['z', -1])
+        self.accept("shift-z", self.roll, ['z', 1])
+        self.accept("shift-z-repeat", self.roll, ['z', 1])
+        self.accept("r", self.reset_roll)
 
         self.accept("c", self.change_digit_color)
 
@@ -79,9 +81,8 @@ class CalibrationApp(ClockBase):
         self.add_help_text("Use arrow keys to nudge the digit position")
         self.add_help_text("Use shift + mouse wheel to change between digits")
         self.add_help_text("Use shift + arrow keys to resize digit")
-        self.add_help_text("Use (shift) h to rotate digit horizontaly")
-        self.add_help_text("Use (shift) v to rotate digit vertically")
-        self.add_help_text("m = move digit to front")
+        self.add_help_text("Use (shift) x/y/z to roll digit around respective axis")
+        self.add_help_text("r = reset roll")
         self.add_help_text("Space = same as left mouse button")
         self.add_help_text("c = change highlight colors")
         self.add_help_text("s = save configuration")
@@ -93,7 +94,7 @@ class CalibrationApp(ClockBase):
     
     def create_spot(self):
         """Create a white circle spot"""
-        # Create a circular texture
+        # create a circular texture
         size = 128
         img = PNMImage(size, size, 4)
         center = size // 2
@@ -112,10 +113,10 @@ class CalibrationApp(ClockBase):
                     img.setAlpha(x, y, 0)
         tex = Texture()
         tex.load(img)
-        # Create card for the spot
-        cm = CardMaker("spot")
-        cm.setFrame(-1, 1, -1, 1)
-        self.spot = self.aspect2d.attachNewNode(cm.generate())
+        # place spot in scene
+        self.spot = NodePath("spot")
+        # self.scene.attachNewNode(self.spot)
+        self.spot.reparentTo(self.scene)
         self.spot.setTexture(tex)
         self.spot.setTransparency(TransparencyAttrib.MAlpha)
         self.spot.setScale(self.spot_size)
@@ -170,9 +171,7 @@ class CalibrationApp(ClockBase):
                 'digit': int(text),
                 'x': self.spot.getX(),
                 'y': self.spot.getZ() - self.spot_size/2,
-                'xscale': self.spot_size * 2,
-                'yscale': self.spot_size * 2,
-                'roll': 0
+                'scale': self.spot_size * 2,
             })
 
 
@@ -187,9 +186,10 @@ class CalibrationApp(ClockBase):
                 'digit': int(digit),
                 'x': self.current_text.getPos()[0],
                 'y': self.current_text.getPos()[1],
-                'xscale': self.current_text.getScale()[0],
-                'yscale': self.current_text.getScale()[1],
-                'roll': self.current_text.getRoll(),
+                'scale': self.current_text.getScale()[0],
+                'xroll': self.current_text.getHpr()[0],
+                'yroll': self.current_text.getHpr()[1],
+                'zroll': self.current_text.getHpr()[2],
                 'text_node': self.current_text
             })
             self.current_text = None
@@ -278,37 +278,25 @@ class CalibrationApp(ClockBase):
             self.current_text.setScale(self.spot_size * 2)
     
 
-    def move_digit_to_front(self):
-        """Move current digit to the back of the rendering order"""
-        if self.current_text:
-            self.current_text.reparentTo(self.aspect2d)
-        else:
-            item = self.numberAtMouse()
-            if item is not None:
-                item['text_node'].reparentTo(self.aspect2d)
-                self.placed_numbers.remove(item)
-                self.placed_numbers.append(item)
+    def roll(self, axis, delta):
+        """Roll the given text node around the given axis by delta"""
+        text = self.current_text
+        if text is None:
+            return
+        hpr = list(text.getHpr())
+        "__z"
+        axis_index = "yxz".index(axis)
+        value = hpr[axis_index] + delta
+        if -80 < value < 80:
+            hpr[axis_index] = value
+            text.setHpr(hpr[0], hpr[1], hpr[2])
+    
 
-
-
-    def roll_number(self, delta):
-        """Rotate current number"""
-        if self.current_text:
-            self.current_text.setTextR(self.current_text.getTextR() + delta)
-
-
-    def rotate_number(self, delta):
-        """Tilt current number"""
-        if self.current_text:
-            scale = self.current_text.getTextScale()
-            if delta < 0 and (scale[0] < 0.01):
-                return
-            if delta > 0 and (scale[0] > scale[1]):
-                delta = -delta
-            self.current_text.setTextScale((scale[0] + delta, scale[1]))
-            print(f"scale {self.current_text.getTextScale()[0]:.3f}")
-        else:
-            self.toggle_help()
+    def reset_roll(self):
+        """Reset roll of the current text node"""
+        text = self.current_text
+        if text:
+            text.setHpr(0, 0, 0)
 
 
 if __name__ == "__main__":
