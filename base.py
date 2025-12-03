@@ -30,7 +30,6 @@ class ClockBase(ShowBase):
         self.accept("h", self.toggle_help)
         self.accept("escape", sys.exit)
         self.accept("i", self.print_stats)
-        self.accept("c", self.change_digit_color)
         self.accept("f11", self.toggle_fullscreen)
         self.accept("f", self.toggle_fullscreen)
 
@@ -39,18 +38,7 @@ class ClockBase(ShowBase):
         self.add_help_text("h = hide/show this help")
         self.add_help_text("escape = quit program")
         self.add_help_text("i = print statistics")
-        self.add_help_text("c = change highlight colors")
         self.add_help_text("F11 / f = toggle fullscreen")
-
-
-
-    def change_digit_color(self):
-        if self.digit_color == (0, 1, 0, 1):
-            self.set_digit_color((1, 1, 0, 1))
-        elif self.digit_color == (1, 1, 0, 1):
-            self.set_digit_color((0, 0, 1, 1))
-        else:
-            self.set_digit_color((0, 1, 0, 1))
 
 
 

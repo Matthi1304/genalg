@@ -25,6 +25,13 @@ class Animation:
             if not self.sound_file:
                 print(f"No sound file for animation found, should match 'audio/{self.__class__.__name__.lower()}.*'.")
 
+
+    def random_color(self):
+        colors = set()
+        for cs in self.clock.color_sets:
+            colors.update(cs)
+        return choice(list(colors))
+
     
     def start(self):
         """
@@ -134,11 +141,14 @@ def color_fader(digit, start_color, end_color, step, both_ways=True):
 
     def fade_to(start_color, end_color, step):
         for i in range(step + 1):
-            ratio = i / step
-            r = start_color[0] + (end_color[0] - start_color[0]) * ratio
-            g = start_color[1] + (end_color[1] - start_color[1]) * ratio
-            b = start_color[2] + (end_color[2] - start_color[2]) * ratio
-            yield (r, g, b, 1)
+            t = i / step
+            ratio = 1 - (1 - t) ** 2.5  # ease-out
+            yield(
+                start_color[0] + (end_color[0] - start_color[0]) * ratio,
+                start_color[1] + (end_color[1] - start_color[1]) * ratio,
+                start_color[2] + (end_color[2] - start_color[2]) * ratio,
+                start_color[3] + (end_color[3] - start_color[3]) * ratio
+            )
 
     def fade_to_and_back(start_color, end_color, step):
         """Generate colors fading from start_color to end_color and back again in given steps"""
@@ -241,7 +251,7 @@ class FillPie(Animation):
     def __init__(self, clock, color=None):
         super().__init__(clock, exclusive=True)
         if color is None:
-            self.target_color = choice([clock.red, clock.green, clock.blue, clock.yellow, clock.cyan])
+            self.target_color = self.random_color()
         else:
             self.target_color = color
         # degrees, full circle is 360 degrees
@@ -268,12 +278,9 @@ class Blob(Animation):
     Either starting at the center of the screen or from outside in.
     """
 
-    def __init__(self, clock, number=None, color=None):
+    def __init__(self, clock):
         super().__init__(clock, exclusive=True)
-        if color is None:
-            self.target_color = choice([clock.red, clock.green, clock.blue, clock.yellow, clock.cyan])
-        else:
-            self.target_color = color
+        self.target_color = self.random_color()
         self.step = 15 # number of steps for each radius increment
         self.fade_cycle = self.step * 20 # number of update steps for a full fade in or fadeout
     
@@ -312,7 +319,7 @@ class WanderingDigit(Animation):
         super().__init__(clock, exclusive=True)
         self.number = number if number is not None else randint(0, 15)
         if color is None:
-            self.target_color = choice([clock.red, clock.green, clock.blue, clock.yellow, clock.cyan])
+            self.target_color = self.random_color()
         else:
             self.target_color = color
         self.step = 200 # number of update steps for a full fade in or fadeout
@@ -356,7 +363,7 @@ class Sweeper(Animation):
     def __init__(self, clock, color=None):
         super().__init__(clock, exclusive=True)
         if color is None:
-            self.target_color = choice([clock.red, clock.green, clock.blue, clock.yellow, clock.cyan, clock.white])
+            self.target_color = self.random_color()
         else:
             self.target_color = color
         self.step = 0.01
@@ -393,7 +400,7 @@ class Countdown(Animation):
         super().__init__(clock, exclusive=True)
         self.current_number = start_number
         if color is None:
-            self.target_color = choice([clock.red, clock.green, clock.blue, clock.yellow, clock.cyan, clock.white])
+            self.target_color = self.random_color()
         else:
             self.target_color = color
         self.hide_counted_digits = choice([True, False, False, False])  # mostly do not hide
