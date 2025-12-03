@@ -6,7 +6,7 @@ import sys
 from panda3d.core import *
 from direct.showbase.ShowBase import ShowBase
 from direct.task import Task
-from direct.gui.DirectGui import OnscreenText  
+from direct.gui.DirectGui import OnscreenText
 
 SORT = lambda item: (item['x'], -item['y'])
 
@@ -166,15 +166,14 @@ class CalibrationApp(ClockBase):
         if self.current_text:
             self.current_text.text = text
         else:
-            self.current_text = OnscreenText(
-                text = text,
-                pos=self.getNumberPosition(),
-                scale=self.spot_size * 2,
-                fg=self.red,
-                align=TextNode.ACenter,
-                font=self.font,
-                mayChange=True
-            )
+            self.current_text = self.create_text_node({
+                'digit': int(text),
+                'x': self.spot.getX(),
+                'y': self.spot.getZ() - self.spot_size/2,
+                'xscale': self.spot_size * 2,
+                'yscale': self.spot_size * 2,
+                'roll': 0
+            })
 
 
     def fix_number(self):
@@ -307,6 +306,7 @@ class CalibrationApp(ClockBase):
             if delta > 0 and (scale[0] > scale[1]):
                 delta = -delta
             self.current_text.setTextScale((scale[0] + delta, scale[1]))
+            print(f"scale {self.current_text.getTextScale()[0]:.3f}")
         else:
             self.toggle_help()
 

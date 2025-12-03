@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+from panda3d.core import TextNode
 from panda3d.core import *
 from direct.showbase.ShowBase import ShowBase
 from direct.task import Task
@@ -70,22 +71,28 @@ class ClockBase(ShowBase):
                     item['xscale'] = legacy_scale
                     item['yscale'] = legacy_scale
                     item['roll'] = 0
-                text_node = OnscreenText(
-                    text="O" if item['digit'] == 0 else str(item['digit']),
-                    pos=(item['x'], item['y']),
-                    scale=(item['xscale'], item['yscale']),
-                    fg=self.digit_color,
-                    align=TextNode.ACenter,
-                    font=self.font,
-                    roll=item['roll'],
-                    mayChange=True
-                )
+                text_node = self.create_text_node(item)
                 item['text_node'] = text_node
             print(f"Loaded {len(config)} numbers from {config_file}")
         except FileNotFoundError:
             print(f"{config_file} not found")
         except json.JSONDecodeError as e:
             print(f"{config_file} contains invalid JSON: {e.msg}")
+
+
+    def create_text_node(self, item):
+        """Create a text node for the given item"""
+        text_node = OnscreenText(
+            text=str(item['digit']),
+            pos=(item['x'], item['y']),
+            scale=(item.get('xscale', 0.1), item.get('yscale', 0.1)),
+            fg=self.digit_color,
+            align=TextNode.ACenter,
+            font=self.font,
+            roll=item['roll'],
+            mayChange=True
+        )
+        return text_node
 
 
     def save(self):

@@ -11,9 +11,9 @@ from panda3d.core import *
 from panda3d.core import loadPrcFile
 from direct.showbase.ShowBase import ShowBase
 from direct.task import Task
-from direct.gui.DirectGui import OnscreenText 
 
-BLACK = (0, 0, 0, 0)
+# this is fully transparent, rgb values are ignored
+BLACK = (0, 0, 0, 0) 
 
 class Clock(ClockBase):
 
