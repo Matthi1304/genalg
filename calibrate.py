@@ -3,6 +3,7 @@
 # load and save the configuration to a json file
 from base import ClockBase
 import sys
+from panda3d.core import GeomTriangles
 from panda3d.core import *
 from direct.showbase.ShowBase import ShowBase
 from direct.task import Task
@@ -15,7 +16,7 @@ class CalibrationApp(ClockBase):
     def __init__(self, config_file="beamer.json"):
         super().__init__(digit_color=(0, 1, 0, 1))
 
-        self.spot_size = 0.3
+        self.spot_size = 1.0
         self.create_spot()
         self.current_text = None
         self.red = (1, 0, 0, 1)
@@ -114,13 +115,14 @@ class CalibrationApp(ClockBase):
         tex = Texture()
         tex.load(img)
         # place spot in scene
+        ## xxx = GeomTriangles(GeomTriangles.UHStatic)
         self.spot = NodePath("spot")
-        # self.scene.attachNewNode(self.spot)
         self.spot.reparentTo(self.scene)
         self.spot.setTexture(tex)
         self.spot.setTransparency(TransparencyAttrib.MAlpha)
         self.spot.setScale(self.spot_size)
         self.spot.setPos(0, 0, 0)
+        self.spot.show()
 
 
     def change_digit_color(self):
@@ -142,8 +144,9 @@ class CalibrationApp(ClockBase):
         mouse_pos = self.mouseWatcherNode.getMouse()
         # Convert to aspect2d coordinates
         aspect_ratio = self.getAspectRatio()
-        x = mouse_pos.getX() * aspect_ratio
+        x = mouse_pos.getX() # * aspect_ratio
         y = mouse_pos.getY()
+        x, y = self.screen_to_world(x, y)
         return Point2(x, y)
 
 
@@ -227,8 +230,8 @@ class CalibrationApp(ClockBase):
             self.current_text = item['text_node']
             self.placed_numbers.remove(item)
             self.current_text.setFg(self.red)
-            self.spot_size = item['xscale'] / 2            
-            self.spot.setPos(item['x'], 0, item['y'])
+            self.spot_size = item['scale'] / 2            
+            # self.spot.setPos(item['x'], 0, item['y'])
             self.spot.setScale(self.spot_size)
         else:
             self.place_number(1)
@@ -274,13 +277,14 @@ class CalibrationApp(ClockBase):
         """Resize current number"""
         self.spot_size = max(0.04, self.spot_size + delta)
         self.spot.setScale(self.spot_size)
-        if self.current_text:
-            self.current_text.setScale(self.spot_size * 2)
+        item = self.current_text or self.numberAtMouse()
+        if item:
+            item.setScale(self.spot_size * 2)
     
 
     def roll(self, axis, delta):
         """Roll the given text node around the given axis by delta"""
-        text = self.current_text
+        text = self.current_text or self.numberAtMouse()
         if text is None:
             return
         hpr = list(text.getHpr())
