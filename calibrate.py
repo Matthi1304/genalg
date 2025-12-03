@@ -11,6 +11,9 @@ from direct.gui.DirectGui import OnscreenText
 
 SORT = lambda item: (item['x'], -item['y'])
 
+RED = (1, 0, 0, 1)
+HIGHLIGHT_COLOR = (0.8, 1, 0, 1)
+
 class CalibrationApp(ClockBase):
 
     def __init__(self, config_file="beamer.json"):
@@ -19,7 +22,7 @@ class CalibrationApp(ClockBase):
         self.spot_size = 1.0
         self.create_spot()
         self.current_text = None
-        self.red = (1, 0, 0, 1)
+        RED = (1, 0, 0, 1)
 
         # Setup mouse and keyboard events
         # Task to update spot position based on mouse
@@ -176,6 +179,7 @@ class CalibrationApp(ClockBase):
                 'y': self.spot.getZ() - self.spot_size/2,
                 'scale': self.spot_size * 2,
             })
+            self.current_text.setFg(RED)
 
 
     def fix_number(self):
@@ -229,7 +233,7 @@ class CalibrationApp(ClockBase):
         if item is not None:
             self.current_text = item['text_node']
             self.placed_numbers.remove(item)
-            self.current_text.setFg(self.red)
+            self.current_text.setFg(RED)
             self.spot_size = item['scale'] / 2            
             # self.spot.setPos(item['x'], 0, item['y'])
             self.spot.setScale(self.spot_size)
@@ -269,7 +273,7 @@ class CalibrationApp(ClockBase):
                 self.highlight['text_node'].setFg(self.digit_color)
             self.highlight = self.numberAtMouse()
             if self.highlight is not None:
-                self.highlight['text_node'].setFg(self.red)
+                self.highlight['text_node'].setFg(HIGHLIGHT_COLOR)
         return Task.cont
     
 
@@ -277,14 +281,14 @@ class CalibrationApp(ClockBase):
         """Resize current number"""
         self.spot_size = max(0.04, self.spot_size + delta)
         self.spot.setScale(self.spot_size)
-        item = self.current_text or self.numberAtMouse()
+        item = self.current_text
         if item:
             item.setScale(self.spot_size * 2)
     
 
     def roll(self, axis, delta):
         """Roll the given text node around the given axis by delta"""
-        text = self.current_text or self.numberAtMouse()
+        text = self.current_text
         if text is None:
             return
         hpr = list(text.getHpr())
