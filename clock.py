@@ -42,6 +42,8 @@ class Clock(ClockBase):
 
         self.accept("c", self.change_colors)
         self.accept("s", self.color_all_digits)
+        self.accept("m", self.toggle_fast_clock_mode, [5])
+        self.toggle_fast_clock_mode(5)  # start in fast mode
 
         self.accept("arrow_up", self.adjust_time, [60])
         self.accept("arrow_up-repeat", self.adjust_time, [60])
@@ -74,6 +76,7 @@ class Clock(ClockBase):
         self.add_help_text("Use (shift) up, down arrow to change time")
         self.add_help_text("Press 'r' to reset time to real time")
         self.add_help_text("Press 'a' to start or stop an animation")
+        self.add_help_text("Press 'm' to toggle 'mode fast' for changing digits of clock")
         self.add_help_text("Press a number key to trigger a specific animation")
         print("=======================================================================")
 
@@ -209,6 +212,22 @@ class Clock(ClockBase):
                 self.color_all_digits(color=self.black)
 
 
+    def toggle_fast_clock_mode(self, default=5):
+        """
+        Toggle fast clock mode: when enabled, the digits change more frequently for demonstration purposes.
+        'default' specifies how often (in seconds) the digits should change in fast mode;
+        should be less than 60 seconds.        
+        """
+        if not hasattr(self, 'change_digits_every_x_seconds'):
+            self.change_digits_every_x_seconds = 0 # default value: fast mode off
+        if self.change_digits_every_x_seconds == 0:
+            self.change_digits_every_x_seconds = default
+            print(f"Mode fast switched ON: digits change every {default} seconds")
+        else:
+            print("Mode fast switched OFF")
+            self.change_digits_every_x_seconds = 0
+
+
     def display_time(self, t):
 
         def clear_digits_with_color(color):
@@ -228,8 +247,17 @@ class Clock(ClockBase):
         if t == self.last_time:
             return
 
-        change_minutes = t[:3] != self.last_time[:3] # every minute
-        change_hours = change_minutes # also every minute
+        # at least every hour
+        change_hours = (t[:2] != self.last_time[:2]) 
+        # check for fast clock change mode
+        if hasattr(self, 'change_digits_every_x_seconds') and (self.change_digits_every_x_seconds > 0):
+            seconds = int(t[4:6])
+            if seconds % self.change_digits_every_x_seconds == 0:
+                change_hours = True
+        # every time we change the hours or at least every minute
+        change_minutes = change_hours or (t[:3] != self.last_time[:3]) 
+        # also every minute
+        change_hours = change_minutes 
 
         h0, h1, m0, m1, s0, s1 = [int(c) for c in t]
         h_color, m_color, s_color = self.highlight_colors
@@ -250,7 +278,7 @@ class Clock(ClockBase):
             for _ in range(iteration_count):
                 digit_h0 = random.choice(get_digits(h0, self.default_color))
                 digit_h1 = random.choice(get_digits(h1, self.default_color))
-                if digit_h0 != digit_h1 and digit_h0['x'] < digit_h1['x'] and digit_h0['y'] < digit_h1['y']:
+                if digit_h0 != digit_h1 and digit_h0['x'] < digit_h1['x'] and digit_h0['y'] > digit_h1['y']:
                     digit_h0['text_node'].setFg(h_color)
                     digit_h1['text_node'].setFg(h_color)
                     break
@@ -259,7 +287,7 @@ class Clock(ClockBase):
             for _ in range(iteration_count):
                 digit_m0 = random.choice(get_digits(m0, self.default_color))
                 digit_m1 = random.choice(get_digits(m1, self.default_color))
-                if digit_m0 != digit_m1 and digit_m0['x'] < digit_m1['x'] and digit_m0['y'] < digit_m1['y']:
+                if digit_m0 != digit_m1 and digit_m0['x'] < digit_m1['x'] and digit_m0['y'] > digit_m1['y']:
                     digit_m0['text_node'].setFg(m_color)
                     digit_m1['text_node'].setFg(m_color)
                     break
@@ -273,6 +301,10 @@ class Clock(ClockBase):
         # success!
         self.last_time = t
 
+
+    def print_stats(self):
+        super().print_stats()
+        print(f"Current displayed time: {self.last_time[:2]}:{self.last_time[2:4]}:{self.last_time[4:6]}")
 
 
 if __name__ == "__main__":
