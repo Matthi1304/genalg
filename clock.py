@@ -31,7 +31,8 @@ class Clock(ClockBase):
         self.background_color = self.black
 
         self.color_sets = [
-            ((40/255, 53/255, 131/255, 1), (253/255, 235/255, 25/255, 1), (63/255, 165/255, 53/255, 1)), # poster colors: dark blue, yellow, green
+            # exhibition poster colors: , yellow, green, dark blue
+            ((253/255, 235/255, 25/255, 1), (63/255, 165/255, 53/255, 1), (40/255, 53/255, 131/255, 1)), 
             (self.white, self.green, self.red),
             (self.green, self.blue, self.red),
             (self.yellow, self.red, self.blue),
@@ -77,7 +78,7 @@ class Clock(ClockBase):
         self.add_help_text("Press 'r' to reset time to real time")
         self.add_help_text("Press 'a' to start or stop an animation")
         self.add_help_text("Press 'm' to toggle 'mode fast' for changing digits of clock")
-        self.add_help_text("Press a number key to trigger a specific animation")
+        self.add_help_text("Press any number key to trigger a specific animation")
         print("=======================================================================")
 
         self.toggle_help() # do not show help by default
@@ -156,6 +157,7 @@ class Clock(ClockBase):
 
     def update_task(self, task):
         t = datetime.now() + timedelta(seconds=self.time_delta)
+        self.play_clock_sounds(t)
         self.do_animation_at_random_time()
         if self.animation is not None:
             if self.animation.active:
@@ -164,7 +166,6 @@ class Clock(ClockBase):
                     return Task.cont
             else:
                 self.animation = None
-        self.play_gong_at_hour(t)
         try:
             self.display_time(t.strftime("%H%M%S"))
         except Exception:
@@ -184,7 +185,7 @@ class Clock(ClockBase):
                     self.toggle_animation()
 
     
-    def play_gong_at_hour(self, t):
+    def play_clock_sounds(self, t):
         if t.minute == 0:
             h = t.hour % 12
             if t.hour == 0:
@@ -228,7 +229,7 @@ class Clock(ClockBase):
             self.change_digits_every_x_seconds = 0
 
 
-    def display_time(self, t):
+    def display_time(self, t, iteration_count=40):
 
         def clear_digits_with_color(color):
             for digit in self.placed_numbers:
@@ -261,7 +262,6 @@ class Clock(ClockBase):
 
         h0, h1, m0, m1, s0, s1 = [int(c) for c in t]
         h_color, m_color, s_color = self.highlight_colors
-        iteration_count = 30
 
         clear_digits_with_color(s_color)
         if change_minutes:
@@ -269,18 +269,22 @@ class Clock(ClockBase):
         if change_hours:
             clear_digits_with_color(h_color)        
 
+        updates_needed = 3 if change_hours else (2 if change_minutes else 1)
+
         if change_hours and h0 == 0:
             clear_digits_with_color(h_color)        
             digit_h1 = random.choice(get_digits(h1, self.default_color))
             digit_h1['text_node'].setFg(h_color)
-
+            updates_needed -= 1
+        
         if change_hours and h0 != 0:
             for _ in range(iteration_count):
                 digit_h0 = random.choice(get_digits(h0, self.default_color))
                 digit_h1 = random.choice(get_digits(h1, self.default_color))
-                if digit_h0 != digit_h1 and digit_h0['x'] < digit_h1['x'] and digit_h0['y'] > digit_h1['y']:
+                if digit_h0 != digit_h1 and digit_h0['x'] < digit_h1['x']: # and digit_h0['y'] > digit_h1['y']:
                     digit_h0['text_node'].setFg(h_color)
                     digit_h1['text_node'].setFg(h_color)
+                    updates_needed -= 1
                     break
 
         if change_minutes:
@@ -290,16 +294,27 @@ class Clock(ClockBase):
                 if digit_m0 != digit_m1 and digit_m0['x'] < digit_m1['x'] and digit_m0['y'] > digit_m1['y']:
                     digit_m0['text_node'].setFg(m_color)
                     digit_m1['text_node'].setFg(m_color)
+                    updates_needed -= 1
                     break
+
         for _ in range(iteration_count):
             digit_s0 = random.choice(get_digits(s0, self.default_color))
             digit_s1 = random.choice(get_digits(s1, self.default_color))
             if digit_s0 != digit_s1 and digit_s0['x'] < digit_s1['x']:
                 digit_s0['text_node'].setFg(s_color)
                 digit_s1['text_node'].setFg(s_color)
+                updates_needed -= 1
                 break
-        # success!
-        self.last_time = t
+
+        if updates_needed > 0:
+            self.failed_update = t
+        else:  
+            # successful 
+            if hasattr(self, 'failed_update') and self.failed_update != t:
+                f = self.failed_update
+                print(f"{t[:2]}:{t[2:4]}:{t[4:6]}: Successful clock update after previous failures for time {f[:2]}:{f[2:4]}:{f[4:6]}")
+                del self.failed_update
+            self.last_time = t
 
 
     def print_stats(self):
