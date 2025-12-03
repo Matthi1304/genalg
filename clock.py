@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 import random
 import sys
 from panda3d.core import *
+from panda3d.core import loadPrcFile
 from direct.showbase.ShowBase import ShowBase
 from direct.task import Task
 from direct.gui.DirectGui import OnscreenText 
@@ -79,6 +80,9 @@ class Clock(ClockBase):
         self.add_help_text("Press 'a' to start or stop an animation")
         self.add_help_text("Press 'm' to toggle 'mode fast' for changing digits of clock")
         self.add_help_text("Press any number key to trigger a specific animation")
+        for i, animation_class in enumerate(self.animations, start=1):
+            if i <= 10:
+                print(f"  Press '{i % 10}' to trigger {animation_class.__name__}")
         print("=======================================================================")
 
         self.toggle_help() # do not show help by default
