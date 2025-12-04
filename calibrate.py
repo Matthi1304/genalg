@@ -3,11 +3,8 @@
 # load and save the configuration to a json file
 from base import ClockBase
 import sys
-from panda3d.core import GeomTriangles
 from panda3d.core import *
-from direct.showbase.ShowBase import ShowBase
 from direct.task import Task
-from direct.gui.DirectGui import OnscreenText
 
 SORT = lambda item: (item['x'], -item['y'])
 
@@ -17,12 +14,11 @@ HIGHLIGHT_COLOR = (0.8, 1, 0, 1)
 class CalibrationApp(ClockBase):
 
     def __init__(self, config_file="beamer.json"):
-        super().__init__(digit_color=(0, 1, 0, 1))
+        super().__init__(digit_color=(0, 0, 1, 1))
 
         self.spot_size = 1.0
         self.create_spot()
         self.current_text = None
-        RED = (1, 0, 0, 1)
 
         # Setup mouse and keyboard events
         # Task to update spot position based on mouse
@@ -118,21 +114,19 @@ class CalibrationApp(ClockBase):
         tex = Texture()
         tex.load(img)
         # place spot in scene
-        ## xxx = GeomTriangles(GeomTriangles.UHStatic)
-        self.spot = NodePath("spot")
-        self.spot.reparentTo(self.scene)
+        cm = CardMaker("spot")
+        cm.setHas3dUvs(True)
+        cm.setFrame(-self.spot_size, self.spot_size, -self.spot_size, self.spot_size)
+        self.spot = self.scene.attachNewNode(cm.generate())
         self.spot.setTexture(tex)
         self.spot.setTransparency(TransparencyAttrib.MAlpha)
-        self.spot.setScale(self.spot_size)
-        self.spot.setPos(0, 0, 0)
-        self.spot.show()
 
 
     def change_digit_color(self):
         colors = [
+            (0, 0, 1, 1),
             (0, 1, 0, 1),
             (1, 1, 0, 1),
-            (0, 0, 1, 1),
             (0, 0, 0, 0)
         ]
         next_index = (colors.index(self.digit_color) + 1) % len(colors)
@@ -263,7 +257,7 @@ class CalibrationApp(ClockBase):
             # no mouse movement
             return Task.cont
         self.spot.show()  # Ensure spot is visible when mouse is moved
-        self.spot.setPos(mouse_pos.x, 0, mouse_pos.y)            
+        self.spot.setPos(mouse_pos.x, 1, mouse_pos.y)            
         # If current text exists, move it too
         if self.current_text:
             x, y = self.getNumberPosition()
