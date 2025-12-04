@@ -13,12 +13,13 @@ class DigitNode(NodePath):
 
     """A TextNode representing a single digit"""
     def __init__(self, digit, color=(0,1,0,1), font=None, parent=None):
-        super().__init__(f"digit_{digit}")
+        text = str(digit['digit']) if isinstance(digit, dict) else str(digit)
+        super().__init__(f"digit_{text}")
         # make a text node
-        textNode = TextNode('')
+        textNode = TextNode(text)
         self.textNode = textNode
 
-        textNode.setText(str(digit))
+        textNode.setText(text)
         textNode.setAlign(TextNode.ACenter)
         textNode.setTextColor(color)
         if font:
@@ -27,7 +28,41 @@ class DigitNode(NodePath):
         # Set ourselves up as the NodePath that points to this node.
         self.assign(parent.attachNewNode(self.textNode, 0))
 
+        if isinstance(digit, dict):
+            self.__data = digit
+            self.setPos(digit['x'], 0, digit['y'])
+            self.setScale(digit['scale'])
+            self.setHpr(digit.get('xroll', 0), digit.get('yroll', 0), digit.get('zroll', 0))
+            digit['text_node'] = self
+        else:
+            self.__data = { 'digit': int(text) }
+
+
+    def _update_data(self):
+        self.__data['digit'] = int(self.textNode.getWtext())
+        self.__data['x'] = self.getPos()[0]
+        self.__data['y'] = self.getPos()[1]
+        self.__data['scale'] = self.getScale()[0]
+        self.__data['xroll'] = self.getHpr()[0]
+        self.__data['yroll'] = self.getHpr()[1]
+        self.__data['zroll'] = self.getHpr()[2]
+
+
+    def __getData(self):
+        _update_data = self._update_data()
+        return self.__data
     
+
+    data = property(__getData)
+
+
+    def __getScale(self):
+        return self.getScale()[0]
+    
+
+    sacle = property(__getScale)
+
+
     def __getFg(self):
         return self.textNode.getTextColor()
 
@@ -40,7 +75,7 @@ class DigitNode(NodePath):
 
 
     def setText(self, text):
-        assert not isinstance(text, bytes)
+        self.__data['digit'] = int(text)
         self.textNode.setWtext(text)
 
 
@@ -55,7 +90,8 @@ class DigitNode(NodePath):
         if (isinstance(p, tuple) or isinstance(p, list)) and len(p) == 2:
             super().setPos(p[0], 0, p[1])
         else:
-            super().setPos(p)
+            super().setPos(*p)
+        self.__data['x'], self.__data['y'] = self.getPos()
     
 
     def getPos(self):
@@ -64,11 +100,15 @@ class DigitNode(NodePath):
     
 
     def setScale(self, *s):
-        if (isinstance(s, tuple) or isinstance(s, list)):
-            if len(s) == 1:
-                super().setScale(s[0], 1, s[0])
-            else:
-                super().setScale(s[0], 1, s[1])
+        super().setScale(*s)
+        self.__data['scale'] = self.getScale()[0]
+
+
+    def setHpr(self, *hpr):
+        super().setHpr(*hpr)
+        self.__data['xroll'] = self.getHpr()[0]
+        self.__data['yroll'] = self.getHpr()[1]
+        self.__data['zroll'] = self.getHpr()[2]
 
 
 class ClockBase(ShowBase):
@@ -185,12 +225,7 @@ class ClockBase(ShowBase):
 
     def create_text_node(self, item):
         """Factory method to create a TextNode for the given item"""
-        tn = DigitNode(item['digit'], color=self.digit_color, font=self.font, parent=self.scene)
-        tn.setPos(item['x'], 0, item['y'])
-        tn.setScale(item['scale'])
-        # tn.setHpr(item.get('xroll', 0), item.get('yroll', 0), item.get('zroll', 0))
-        tn.setHpr(item.get('xroll', 0), item.get('yroll', 0), item.get('zroll', 0))
-        return tn
+        return DigitNode(item, color=self.digit_color, font=self.font, parent=self.scene)
 
 
     def save(self):
