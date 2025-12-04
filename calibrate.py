@@ -6,7 +6,6 @@ import sys
 from panda3d.core import *
 from direct.task import Task
 
-SORT = lambda item: (item['x'], -item['y'])
 
 RED = (1, 0, 0, 1)
 HIGHLIGHT_COLOR = (0.8, 1, 0, 1)
@@ -66,6 +65,7 @@ class CalibrationApp(ClockBase):
         self.accept("shift-z", self.roll, ['z', 1])
         self.accept("shift-z-repeat", self.roll, ['z', 1])
         self.accept("r", self.reset_roll)
+        self.accept("v", self.toggle_spot_visibility)
 
         self.accept("c", self.change_digit_color)
 
@@ -84,6 +84,7 @@ class CalibrationApp(ClockBase):
         self.add_help_text("Use (shift) x/y/z to roll digit around respective axis")
         self.add_help_text("r = reset roll")
         self.add_help_text("Space = same as left mouse button")
+        self.add_help_text("v = toggle spot visibility")
         self.add_help_text("c = change highlight colors")
         self.add_help_text("s = save configuration")
         self.add_help_text("q = quit (and save configuration)")
@@ -120,6 +121,8 @@ class CalibrationApp(ClockBase):
         self.spot = self.scene.attachNewNode(cm.generate())
         self.spot.setTexture(tex)
         self.spot.setTransparency(TransparencyAttrib.MAlpha)
+        self.spot.hide()
+        self.spot_visible = False
 
 
     def change_digit_color(self):
@@ -151,9 +154,9 @@ class CalibrationApp(ClockBase):
         """Increase or decrease the current number"""
         if self.current_text:
             digit = self.current_text.text
-            digit = 0 if digit == 'O' else int(digit)
+            digit = int(digit)
             digit = (digit + delta) % 10
-            text = 'O' if digit == 0 else str(digit)
+            text = str(digit)
             self.current_text.text = text
         elif delta > 0:
             self.place_number(1)
@@ -173,6 +176,7 @@ class CalibrationApp(ClockBase):
                 'y': self.spot.getZ() - self.spot_size/2,
                 'scale': self.spot_size * 2,
             })
+            self.placed_numbers.append(self.current_text.data)
             self.current_text.setFg(RED)
 
 
@@ -181,18 +185,6 @@ class CalibrationApp(ClockBase):
         if self.current_text:
             # Change color to green
             self.current_text.setFg(self.digit_color)
-            digit = self.current_text.text
-            digit = 0 if digit == 'O' else int(digit)
-            self.placed_numbers.append({
-                'digit': int(digit),
-                'x': self.current_text.getPos()[0],
-                'y': self.current_text.getPos()[1],
-                'scale': self.current_text.getScale()[0],
-                'xroll': self.current_text.getHpr()[0],
-                'yroll': self.current_text.getHpr()[1],
-                'zroll': self.current_text.getHpr()[2],
-                'text_node': self.current_text
-            })
             self.current_text = None
 
 
@@ -207,32 +199,35 @@ class CalibrationApp(ClockBase):
         return self.get_nearest_digit(x_center, y_center, tolerance=tolerance)
 
 
+    def grab_text_node(self):
+        if not self.current_text:
+            d = self.numberAtMouse()
+            if d:
+                self.current_text = d['text_node']
+                self.current_text.setFg(RED)
+        if self.current_text:
+            return self.current_text
+
+
     def remove_number(self):
         """Remove number at current spot position"""
-        if (self.current_text):
-            self.current_text.removeNode()
-        else:
-            # Find if there's a fixed number near the spot position
-            item = self.numberAtMouse()
-            if item is not None:
-                self.placed_numbers.remove(item)
-                item['text_node'].removeNode()
+        item = self.grab_text_node()
+        if item:
+            item.removeNode()
+            self.placed_numbers.remove(item.data)
+            self.current_text = None
 
 
     def change_number(self):
         """Change/edit the number at current spot position"""
         if self.current_text:
             return  # Already editing a number
-        item = self.numberAtMouse()
-        if item is not None:
-            self.current_text = item['text_node']
-            self.placed_numbers.remove(item)
-            self.current_text.setFg(RED)
-            self.spot_size = item['scale'] / 2            
-            # self.spot.setPos(item['x'], 0, item['y'])
-            self.spot.setScale(self.spot_size)
-        else:
+        item = self.grab_text_node()
+        if item is None:
             self.place_number(1)
+        else:
+            self.spot_size = item.scale / 2
+            self.spot.setScale(self.spot_size)
 
 
     def quit_and_save(self):
@@ -242,10 +237,20 @@ class CalibrationApp(ClockBase):
 
     def keyboard_move(self, dx, dy):
         """Move spot position by delta"""
-        if self.current_text:
-            self.spot.hide()  # Hide spot while moving with keyboard
+        text = self.grab_text_node()
+        if text:
+            self.spot.hide()  # Hide spot while working with keyboard
             x, y = self.current_text.getPos()
-            self.current_text.setPos(x + dx, y + dy)
+            text.setPos(x + dx, y + dy)
+
+
+    def toggle_spot_visibility(self):
+        """Toggle the visibility of the spot"""
+        self.spot_visible = not self.spot_visible
+        if self.spot_visible:
+            self.spot.show()
+        else:
+            self.spot.hide()
 
 
     def mouse_move(self, task, force=False):
@@ -256,12 +261,12 @@ class CalibrationApp(ClockBase):
         if not force and (mouse_pos.x == self.spot.getX() and mouse_pos.y == self.spot.getZ()):
             # no mouse movement
             return Task.cont
-        self.spot.show()  # Ensure spot is visible when mouse is moved
-        self.spot.setPos(mouse_pos.x, 1, mouse_pos.y)            
+        if self.spot_visible:
+            self.spot.show() # show during mouse move
+        self.spot.setPos(mouse_pos.x, 0.01, mouse_pos.y)            
         # If current text exists, move it too
         if self.current_text:
-            x, y = self.getNumberPosition()
-            self.current_text.setPos(x, y)
+            self.current_text.setPos(mouse_pos.x, mouse_pos.y)
         else:
             if hasattr(self, 'highlight') and self.highlight:
                 self.highlight['text_node'].setFg(self.digit_color)
@@ -277,14 +282,16 @@ class CalibrationApp(ClockBase):
         self.spot.setScale(self.spot_size)
         item = self.current_text
         if item:
+            self.spot.hide()  # Hide spot while working with keyboard
             item.setScale(self.spot_size * 2)
     
 
     def roll(self, axis, delta):
         """Roll the given text node around the given axis by delta"""
-        text = self.current_text
+        text = self.grab_text_node()
         if text is None:
             return
+        self.spot.hide()  # Hide spot while working with keyboard
         hpr = list(text.getHpr())
         "__z"
         axis_index = "yxz".index(axis)
