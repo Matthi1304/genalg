@@ -106,10 +106,9 @@ class CalibrationApp(ClockBase):
                 dy = y - center
                 dist = (dx*dx + dy*dy) ** 0.5
                 if dist <= radius:
-                    img.setXel(x, y, 1, 1, 1)
-                    distance = ((dx / radius) ** 2 + (dy / radius) ** 2) ** 0.5
-                    alpha = max(0.0, min(1.0, .9 - distance)) ** 0.5
-                    img.setAlpha(x, y, alpha)
+                    alpha = 1.0 - (dist / radius)
+                    img.setXel(x, y, alpha, alpha, alpha)
+                    img.setAlpha(x, y, alpha**0.5)
                 else:
                     img.setAlpha(x, y, 0)
         tex = Texture()
@@ -120,9 +119,10 @@ class CalibrationApp(ClockBase):
         cm.setFrame(-self.spot_size, self.spot_size, -self.spot_size, self.spot_size)
         self.spot = self.scene.attachNewNode(cm.generate())
         self.spot.setTexture(tex)
-        self.spot.setTransparency(TransparencyAttrib.MAlpha)
+        # self.spot.setTransparency(TransparencyAttrib.MAlpha)
+        self.spot.setDepthWrite(False)
         self.spot.hide()
-        self.spot_visible = False
+        self.spot_visible = True
 
 
     def change_digit_color(self):
@@ -263,7 +263,7 @@ class CalibrationApp(ClockBase):
             return Task.cont
         if self.spot_visible:
             self.spot.show() # show during mouse move
-        self.spot.setPos(mouse_pos.x, 0.01, mouse_pos.y)            
+        self.spot.setPos(mouse_pos.x, -0.01, mouse_pos.y)            
         # If current text exists, move it too
         if self.current_text:
             self.current_text.setPos(mouse_pos.x, mouse_pos.y)
