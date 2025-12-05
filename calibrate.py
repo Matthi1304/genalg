@@ -95,7 +95,6 @@ class CalibrationApp(ClockBase):
     
     def create_spot(self):
         """Create a white circle spot"""
-        # create a circular texture
         size = 128
         img = PNMImage(size, size, 4)
         center = size // 2
@@ -113,13 +112,11 @@ class CalibrationApp(ClockBase):
                     img.setAlpha(x, y, 0)
         tex = Texture()
         tex.load(img)
-        # place spot in scene
         cm = CardMaker("spot")
         cm.setHas3dUvs(True)
         cm.setFrame(-self.spot_size, self.spot_size, -self.spot_size, self.spot_size)
         self.spot = self.scene.attachNewNode(cm.generate())
         self.spot.setTexture(tex)
-        # self.spot.setTransparency(TransparencyAttrib.MAlpha)
         self.spot.setDepthWrite(False)
         self.spot.hide()
         self.spot_visible = True
