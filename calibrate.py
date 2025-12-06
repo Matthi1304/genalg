@@ -260,10 +260,10 @@ class CalibrationApp(ClockBase):
             return Task.cont
         if self.spot_visible:
             self.spot.show() # show during mouse move
-        self.spot.setPos(mouse_pos.x, -0.01, mouse_pos.y)            
+        self.spot.setPos(mouse_pos.x, 0, mouse_pos.y)            
         # If current text exists, move it too
         if self.current_text:
-            self.current_text.setPos(mouse_pos.x, mouse_pos.y)
+            self.current_text.setPos(mouse_pos.x, mouse_pos.y - self.spot_size/2)
         else:
             if hasattr(self, 'highlight') and self.highlight:
                 self.highlight['text_node'].setFg(self.digit_color)

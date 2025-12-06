@@ -60,7 +60,12 @@ class DigitNode(NodePath):
         return self.getScale()[0]
     
 
-    sacle = property(__getScale)
+    def __setScale(self, value):
+        self.setScale(value)
+        self.__data['scale'] = self.scale
+    
+
+    scale = property(__getScale, __setScale)
 
 
     def __getFg(self):
